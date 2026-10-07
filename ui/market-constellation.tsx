@@ -101,9 +101,9 @@ function eventEnglish(event: GhostEvent) {
   const details: Record<GhostEvent["type"], string> = {
     MARKET_CLOSE: "The traditional reference freezes while tokenized markets continue.",
     ACTIVITY_CHANGE: "On-chain observations begin to separate from the frozen reference.",
-    PRICE_DIVERGENCE: "Orbit Desk moves away from the group as its spread widens.",
-    LIQUIDITY_DROP: "Orbit Desk loses depth and therefore loses influence.",
-    CONSENSUS_SHIFT: "A fresh Lumen Pool observation moves the weighted consensus.",
+    PRICE_DIVERGENCE: "DEMO VENUE B moves away from the group as its spread widens.",
+    LIQUIDITY_DROP: "DEMO VENUE B loses depth and therefore loses influence.",
+    CONSENSUS_SHIFT: "A fresh DEMO VENUE C observation moves the weighted consensus.",
     VENUE_RECOVERY: "The three observations begin to converge again.",
     CONSENSUS_STABLE: "Agreement improves before the traditional market opens.",
   };

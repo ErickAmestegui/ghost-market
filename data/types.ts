@@ -1,6 +1,6 @@
 export type SymbolKey = "NVDA" | "AAPL" | "TSLA";
 export type Locale = "en" | "es";
-export type DataStatus = "LIVE" | "CACHED" | "SIMULATED";
+export type DataStatus = "LIVE" | "CACHED" | "SIMULATED" | "DEMO" | "UNAVAILABLE" | "ERROR";
 
 export type ReferencePrice = {
   symbol: SymbolKey;

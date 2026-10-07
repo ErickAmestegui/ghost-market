@@ -16,9 +16,9 @@ const CONFIG: Record<SymbolKey, SymbolConfig> = {
 };
 
 const VENUES = [
-  { id: "a" as const, name: "Helix Market" },
-  { id: "b" as const, name: "Orbit Desk" },
-  { id: "c" as const, name: "Lumen Pool" },
+  { id: "a" as const, name: "DEMO VENUE A" },
+  { id: "b" as const, name: "DEMO VENUE B" },
+  { id: "c" as const, name: "DEMO VENUE C" },
 ];
 
 const BLUEPRINT = [
@@ -54,10 +54,10 @@ function makeEvents(symbol: SymbolKey): GhostEvent[] {
   return [
     { id: "close", atMinute: 0, time: "4:00 PM", type: "MARKET_CLOSE", title: "WALL STREET CLOSED", detail: `${symbol} deja una referencia tradicional congelada.`, severity: "info" },
     { id: "activity", atMinute: 133, time: "6:13 PM", type: "ACTIVITY_CHANGE", title: "ACTIVITY CHANGE", detail: "Las observaciones on-chain empiezan a separarse de la referencia.", severity: "info" },
-    { id: "divergence", atMinute: 342, time: "9:42 PM", type: "PRICE_DIVERGENCE", title: "PRICE DIVERGENCE", detail: "Orbit Desk se aleja del grupo y su spread aumenta.", venueId: "b", severity: "critical" },
-    { id: "liquidity", atMinute: 560, time: "1:20 AM", type: "LIQUIDITY_DROP", title: "LIQUIDITY DROP", detail: "La profundidad de Orbit Desk cae y pierde influencia.", venueId: "b", severity: "warning" },
-    { id: "night-signal", atMinute: 617, time: "2:17 AM", type: "PRICE_DIVERGENCE", title: "COORDINATED DIVERGENCE", detail: "Tres mercados reaccionan; Orbit Desk rompe temporalmente el consenso.", venueId: "b", severity: "critical" },
-    { id: "shift", atMinute: 715, time: "3:55 AM", type: "CONSENSUS_SHIFT", title: "CONSENSUS SHIFT", detail: "Lumen Pool registra una nueva observación y mueve el consenso.", venueId: "c", severity: "warning" },
+    { id: "divergence", atMinute: 342, time: "9:42 PM", type: "PRICE_DIVERGENCE", title: "PRICE DIVERGENCE", detail: "DEMO VENUE B se aleja del grupo y su spread aumenta.", venueId: "b", severity: "critical" },
+    { id: "liquidity", atMinute: 560, time: "1:20 AM", type: "LIQUIDITY_DROP", title: "LIQUIDITY DROP", detail: "La profundidad de DEMO VENUE B cae y pierde influencia.", venueId: "b", severity: "warning" },
+    { id: "night-signal", atMinute: 617, time: "2:17 AM", type: "PRICE_DIVERGENCE", title: "COORDINATED DIVERGENCE", detail: "Tres mercados reaccionan; DEMO VENUE B rompe temporalmente el consenso.", venueId: "b", severity: "critical" },
+    { id: "shift", atMinute: 715, time: "3:55 AM", type: "CONSENSUS_SHIFT", title: "CONSENSUS SHIFT", detail: "DEMO VENUE C registra una nueva observación y mueve el consenso.", venueId: "c", severity: "warning" },
     { id: "recovery", atMinute: 870, time: "6:30 AM", type: "VENUE_RECOVERY", title: "VENUE RECOVERY", detail: "Las tres fuentes vuelven a aproximarse.", venueId: "b", severity: "info" },
     { id: "stable", atMinute: 990, time: "8:30 AM", type: "CONSENSUS_STABLE", title: "CONSENSUS STABLE", detail: "El acuerdo mejora antes de la apertura tradicional.", severity: "info" },
   ];

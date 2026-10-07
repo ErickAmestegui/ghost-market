@@ -18,4 +18,9 @@ export type BnbEvidence = {
   explorerContractUrl: string | null;
   observedAt: string;
   error?: string;
+  provider: "xStocks";
+  underlyingSymbol: "NVDA" | "AAPL" | "TSLA";
+  tokenSymbol: "NVDAx" | "AAPLx" | "TSLAx";
+  decimals: number | null;
+  codePresent: boolean;
 };

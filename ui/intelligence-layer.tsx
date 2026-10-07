@@ -2,13 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Brain, ChevronDown, ChevronUp, Eye, Radio, Search, Sparkles, X } from "lucide-react";
+import { marketDataAdapter } from "@/data/adapters";
 import { PULSE_ITEMS } from "@/data/mock/intelligence";
 import type { ConfidenceResult, ConsensusResult, GhostSession, Locale, SymbolKey, VenueObservation } from "@/data/types";
-import type { GhostScoreResult } from "@/engine/ghost-score";
+import { calculateGhostConfidence } from "@/engine/confidence";
+import { calculateGhostConsensus } from "@/engine/consensus";
+import { calculateGhostScore, type GhostScoreResult } from "@/engine/ghost-score";
+import { getReplayFrame } from "@/engine/replay";
 
 type Copy = { en: string; es: string };
 const t = (locale: Locale, copy: Copy) => copy[locale];
 const money = (value: number) => `$${value.toFixed(2)}`;
+
+function researchScore(symbol: SymbolKey) {
+  const session = marketDataAdapter.getSession(symbol);
+  const frame = getReplayFrame(session, 0.68);
+  const consensus = calculateGhostConsensus(frame.venues);
+  const confidence = calculateGhostConfidence(session.close, frame.venues, consensus);
+  return calculateGhostScore(session.close, frame.venues, consensus, confidence).score;
+}
 
 type GuidedAnswer = { question: string; fact: string; inference: string; sources: string; limited: boolean };
 
@@ -56,10 +68,11 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
 
   const ask = (question: string) => {
     const supported = /signal|anomal|explain|confidence|market|señal|anomal|explica|confianza|mercado/i.test(question);
+    const anomalyQuestion = /strangest anomaly|anomalía más extraña/i.test(question);
     setAnswer({
       question,
-      fact: locale === "en" ? `Three simulated tokenized markets price ${symbol} above the frozen reference. Their calculated agreement is ${confidence.score}%.` : `Tres mercados tokenizados simulados valoran ${symbol} sobre la referencia congelada. Su acuerdo calculado es ${confidence.score}%.`,
-      inference: supported ? (locale === "en" ? "The observations are consistent with coordinated repricing, but they do not establish a cause or predict the next open." : "Las observaciones son compatibles con un repricing coordinado, pero no demuestran una causa ni predicen la próxima apertura.") : (locale === "en" ? "There is not enough evidence in this demo to answer that question reliably." : "No hay evidencia suficiente en esta demo para responder esa pregunta de forma fiable."),
+      fact: anomalyQuestion ? (locale === "en" ? `DEMO VENUE B is the strangest anomaly: it has the widest spread (${venues[1]?.liquidity.spreadBps ?? "—"} bps) and the largest visible price separation in this replay.` : `DEMO VENUE B es la anomalía más extraña: tiene el spread más amplio (${venues[1]?.liquidity.spreadBps ?? "—"} bps) y la mayor separación visible de precio en este replay.`) : (locale === "en" ? `Three simulated tokenized markets price ${symbol} above the frozen reference. Their calculated agreement is ${confidence.score}%.` : `Tres mercados tokenizados simulados valoran ${symbol} sobre la referencia congelada. Su acuerdo calculado es ${confidence.score}%.`),
+      inference: anomalyQuestion ? (locale === "en" ? "Its weaker freshness, spread and liquidity make it a candidate outlier; the engine therefore reduces its influence instead of treating it as truth." : "Su menor frescura, spread y liquidez lo convierten en posible outlier; el motor reduce su influencia en vez de tratarlo como verdad.") : supported ? (locale === "en" ? "The observations are consistent with coordinated repricing, but they do not establish a cause or predict the next open." : "Las observaciones son compatibles con un repricing coordinado, pero no demuestran una causa ni predicen la próxima apertura.") : (locale === "en" ? "There is not enough evidence in this demo to answer that question reliably." : "No hay evidencia suficiente en esta demo para responder esa pregunta de forma fiable."),
       sources: `${venues.map((venue) => venue.name).join(" · ")} · ${t(locale, { en: "frozen traditional reference", es: "referencia tradicional congelada" })}`,
       limited: !supported,
     });
@@ -96,7 +109,7 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
             <LedgerRow label={t(locale, { en: "FACTS", es: "HECHOS" })} tone="fact" text={t(locale, { en: `All three observed markets price ${symbol} above the frozen close. Combined observed liquidity is ${(totalLiquidity / 1_000_000).toFixed(1)}M USD.`, es: `Los tres mercados observados valoran ${symbol} sobre el cierre congelado. La liquidez observada combinada es ${(totalLiquidity / 1_000_000).toFixed(1)}M USD.` })}/>
             <LedgerRow label={t(locale, { en: "EVIDENCE", es: "EVIDENCIA" })} tone="evidence" text={t(locale, { en: `Agreement is ${confidence.score}% with ${(totalActivity / 1_000_000).toFixed(1)}M USD in simulated activity.`, es: `El acuerdo es ${confidence.score}% con ${(totalActivity / 1_000_000).toFixed(1)}M USD de actividad simulada.` })}/>
             <LedgerRow label={t(locale, { en: "RISKS", es: "RIESGOS" })} tone="risk" text={t(locale, { en: "One venue has a wider spread and the traditional reference is stale while the market remains closed.", es: "Una fuente tiene un spread más amplio y la referencia tradicional está desactualizada mientras el mercado sigue cerrado." })}/>
-            <LedgerRow label={t(locale, { en: "AI HYPOTHESIS", es: "HIPÓTESIS DE IA" })} tone="hypothesis" text={t(locale, { en: "Coordinated repricing is more plausible than a single-source error, but external catalysts are not confirmed.", es: "El repricing coordinado parece más plausible que un error aislado, pero no hay catalizadores externos confirmados." })}/>
+            <LedgerRow label={t(locale, { en: "UNCONFIRMED HYPOTHESIS", es: "HIPÓTESIS NO CONFIRMADA" })} tone="hypothesis" text={t(locale, { en: "Coordinated repricing is more plausible than a single-source error, but external catalysts are not confirmed.", es: "El repricing coordinado parece más plausible que un error aislado, pero no hay catalizadores externos confirmados." })}/>
             <LedgerRow label={t(locale, { en: "WHAT TO WATCH NEXT", es: "QUÉ OBSERVAR AHORA" })} tone="watch" text={t(locale, { en: "Whether the premium persists while spreads narrow and whether independent sources add context.", es: "Si la prima persiste mientras los spreads se reducen y si fuentes independientes aportan contexto." })}/>
           </div>
         </section>
@@ -173,8 +186,9 @@ function ScenarioEngine({ locale, symbol, consensusPrice }: { locale: Locale; sy
 }
 
 function Discoveries({ locale, onSelect }: { locale: Locale; onSelect: (symbol: SymbolKey) => void }) {
-  const items = [["#1", "NVDA", 91, { en: "Strong coordinated divergence", es: "Fuerte divergencia coordinada" }], ["#2", "TSLA", 82, { en: "Unusual activity with wider spreads", es: "Actividad inusual con spreads más amplios" }], ["#3", "AAPL", 76, { en: "Cross-market disagreement", es: "Desacuerdo entre mercados" }]] as const;
-  return <div className="discoveries"><span>TONIGHT&apos;S DISCOVERIES · SIMULATED</span>{items.map(([rank, symbol, score, description]) => <button key={symbol} onClick={() => onSelect(symbol)}><b>{rank}</b><strong>{symbol}</strong><p>{t(locale, description)}</p><em>GHOST SCORE {score}</em><ArrowUpRight/></button>)}</div>;
+  const descriptions: Record<SymbolKey, Copy> = { NVDA: { en: "Strong coordinated divergence", es: "Fuerte divergencia coordinada" }, TSLA: { en: "Unusual activity with wider spreads", es: "Actividad inusual con spreads más amplios" }, AAPL: { en: "Cross-market disagreement", es: "Desacuerdo entre mercados" } };
+  const items = (["NVDA", "AAPL", "TSLA"] as SymbolKey[]).map((item) => ({ symbol: item, score: researchScore(item), description: descriptions[item] })).sort((a, b) => b.score - a.score);
+  return <div className="discoveries"><span>TONIGHT&apos;S DISCOVERIES · SIMULATED</span>{items.map(({ symbol: item, score, description }, index) => <button key={item} onClick={() => onSelect(item)}><b>#{index + 1}</b><strong>{item}</strong><p>{t(locale, description)}</p><em>GHOST SCORE {score}</em><ArrowUpRight/></button>)}</div>;
 }
 
 function GhostPulse({ locale, symbol }: { locale: Locale; symbol: SymbolKey }) {

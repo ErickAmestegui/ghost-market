@@ -1,126 +1,103 @@
-# vinext-starter
+# Ghost Market — BNB Hackathon Beta 0.5
 
-A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
+Ghost Market explains what can happen to tokenized-stock markets while Wall Street is closed. It combines verifiable BNB Smart Chain contract evidence with a deterministic replay that demonstrates consensus, confidence, anomaly handling, research, scenarios and a next-morning comparison.
 
-## Prerequisites
+The product deliberately separates truth from theater: `LIVE` is fetched from a verifiable source during the request; `SIMULATED`/`DEMO` is fixture data; `UNAVAILABLE` means credentials or a production adapter are missing.
 
-- Node.js `>=22.13.0`
-- Portable: Windows, macOS, or Linux; no Bash required
-- Managed Linux: managed Linux runtime with Bash, `flock`, `curl`, `sha256sum`, and GNU `timeout`
-- Git is required only for publishing
+## What is real today
 
-## Sites Lifecycle
+| Capability | Status | Provenance |
+| --- | --- | --- |
+| Selected AAPLx, NVDAx or TSLAx contract | LIVE when RPC succeeds | BSC public JSON-RPC: bytecode, decimals, total supply and latest block |
+| Binance Stocks Trading asset and quote | LIVE only with `BINANCE_API_KEY` | Official Binance Developer API |
+| Three market venues, liquidity and activity | SIMULATED | Versioned replay fixtures |
+| Ghost Consensus, Confidence and Score | DETERMINISTIC | Pure calculations over the replay fixtures |
+| Break the Consensus stress test | DEMO | Controlled outlier injection and reweighting |
+| Ghost Council, Pulse, Research and scenarios | SIMULATED | Deterministic UI narratives; not autonomous agents |
+| DEX price, liquidity and execution route | UNAVAILABLE | No verified pool/oracle adapter configured |
+| Wallet Skill, ERC-8004 identity, persistent agent | NOT IMPLEMENTED | No claim of agentic execution |
 
-The Sites initializer copies the shared starter and selects managed-linux only when `SITES_MANAGED_LINUX_CONTAINER=1`; otherwise it selects portable. It saves the selection only in ignored `.sites-runtime/execution-profile.json`. Both profiles copy/configure first, then use the plugin's separate `install-dependencies.mjs` step to measure installation independently. Edit source under `app/` and follow the Sites skill for installation, preview, builds, and publishing.
+## Architecture
 
-Run `node <plugin-root>/scripts/configure-execution-profile.mjs` only when the profile is unknown for the current checkout and environment. Profile changes do not alter tracked source or require reinstalling otherwise-valid dependencies; restart an existing preview to use the new selection. Do not commit or upload `.sites-runtime/`.
-
-This starter does not use `wrangler.jsonc`.
-
-`install:ci` runs `npm ci` once against the shared lockfile, disables parent-workspace discovery, and includes required dev/optional dependencies despite production/omit settings. Sharp defaults to prebuilt binaries unless explicitly configured otherwise. Do not overlap installers.
-
-- **Portable:** Preserve host HOME, npm cache, registry, proxy, temporary paths, retry/concurrency settings, and lifecycle-script policy. Use `--prefer-offline --no-audit --no-fund`.
-- **Managed Linux:** Use the existing project-local HOME/cache/tmp setup and Linux install lock, tarball preflight, and timeout. Restore the image-seeded npm cache only when its lockfile hash matches; retain network fallback. Builds keep their existing timeout. These helpers are not invoked by the portable profile.
-
-`scripts/sites-env.mjs` preserves the caller's HOME, npm cache, proxy, XDG, and temporary-directory configuration while defaulting Wrangler and Miniflare state to the checkout. If npm reports an unwritable cache, select a writable path with `npm_config_cache` for that install. The `dev` and `start` scripts also keep Wrangler logs inside the checkout. Generated `.sites-runtime/` and `.wrangler/` directories are disposable and ignored by Git.
-
-On portable, `npm run dev` uses `vinext dev` with HMR, starting at port 5173. Vinext records the running server in ignored `.vinext/` state, rejects an ordinary duplicate launch, and recovers stale state after a stopped process; exactly simultaneous starts can race. Pass `--port <port>` or `--hostname <host>` after `npm run dev --` when needed; keep portable previews on loopback.
-
-For browser QA on managed Linux, use `sites-preview start`. The project's dev script runs Vite and accepts the supervisor's `--host 0.0.0.0 --port 4173 --strictPort` arguments. The internal browser uses `http://terminal.local:4173/`; it is not a user-facing URL. The supervisor owns the preview lifecycle. The ignored local profile survives the supervisor's cleared process environment.
-
-The portable profile simulates ChatGPT sign-in only for loopback development requests. Visit `/signin-with-chatgpt?return_to=/` to sign in as `local_seedy` (`seedy@sites.test`, display name `Seedy`) and `/signout-with-chatgpt?return_to=/` to sign out. The development cookie preserves that identity across server restarts. Mock auth is disabled in the managed-linux profile and is not included in production builds; hosted authentication remains dispatch-owned.
-
-The Worker uses `vinext/server/fetch-handler`, including Vinext's config-aware image handling. After building, `npm start` runs that Worker locally through Wrangler on `127.0.0.1`, sharing `.wrangler/state` with dev preview and local D1 migrations; it does not deploy the site or simulate sign-in. Use the URL printed by the server. Pass `npm start -- --port <port>` to select a different built-preview port.
-
-Local previews use Miniflare's placeholder `Request.cf` metadata without a network lookup. Set `CLOUDFLARE_CF_FETCH_ENABLED=true` to opt into fetching preview metadata; this setting does not change hosted request metadata.
-
-Local tool usage metrics are disabled by default. Set `WRANGLER_SEND_METRICS=true` to opt in.
-
-## Included Shape
-
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `@cloudflare/workers-types` provides Worker types; `cloudflare-env.d.ts` declares optional `DB`/`BUCKET` bindings—update these declarations if binding names change
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Use it as the durable user key; use email and name for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive `oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty `name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by `oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```mermaid
+flowchart LR
+  UI[EN/ES responsive interface] --> E[/api/bnb-evidence/]
+  UI --> B[/api/binance-integration/]
+  UI --> R[Replay adapter]
+  E --> RPC[BNB Chain public RPC]
+  E --> SC[xStocks contracts]
+  B --> API[Binance Stocks Trading API]
+  R --> F[Versioned simulated fixtures]
+  F --> G[Consensus + Confidence + Ghost Score]
+  G --> UI
+  RPC --> UI
+  API --> UI
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+The adapter boundary lets a future verified venue/oracle implementation replace replay fixtures without rewriting the interface or analytical engine.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs optional or required ChatGPT sign-in:
+## Contracts verified
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use the returned `userId` as the stable user key for user-owned records; do not use email as a durable identifier.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send anonymous visitors through Sign in with ChatGPT.
-- In a Server Component, start sign-in with `<a href={chatGPTSignInPath(returnTo)} target="_top">`. The auth helper module is server-only; do not import it into a Client Component.
-- Do not use `fetch`, XHR, a client-side router, or a framework link that can prefetch the sign-in route. SIWC must start as a top-level navigation.
-- Never request the AuthAPI authorization endpoint directly. The dispatch-owned `/signin-with-chatgpt` route must start the SIWC flow.
-- Use `chatGPTSignOutPath(returnTo)` for browser sign-out links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because they depend on per-request identity headers.
+- AAPLx: `0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a`
+- NVDAx: `0xc845b2894dBddd03858fd2D643B4eF725fE0849d`
+- TSLAx: `0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0`
+- BNB Smart Chain mainnet, chain ID `56`
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the OAuth cookies, and identity header injection. Do not implement app routes for those reserved paths. Routes that do not import and call the helper remain anonymous-compatible.
+Verification uses `eth_getCode`, `eth_call` for `decimals()` and `totalSupply()`, plus `eth_getBlockByNumber`. A failure becomes `ERROR`; it is never replaced with a fabricated value.
 
-SIWC establishes identity only; it does not prove workspace membership. Use the Sites hosting platform's access policy controls for workspace-wide restrictions, or enforce explicit server-side membership or allowlist checks.
+## Binance integration
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write actions tied to the current ChatGPT user. Leave public content anonymous.
+The server adapter calls `GET /sapi/v1/equity/market/tokenized-assets` and `GET /sapi/v1/equity/market/quote?symbol=<SYMBOL>`. Copy `.env.example` to `.env.local` and add a valid server-side API key:
 
-## Local D1 migrations
-
-For a D1-backed local preview, generate SQL with `npm run db:generate`. Build once through the Sites skill's build entrypoint (or `npm run build` for standalone use) to generate `dist/server/wrangler.json`, rebuilding if bindings change. From the project root, apply each pending migration in order:
-
-```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_example.sql
+```dotenv
+BINANCE_API_KEY=your_server_side_key
 ```
 
-Replace the filename with the pending migration and `DB` with your D1 binding name if different. Use `.wrangler/state`, not `.wrangler/state/v3`; Wrangler adds the versioned directories. Do not replay migrations already applied locally. This updates only the preview database; publishing applies production migrations separately.
+The key is never sent to the browser. Missing credentials, invalid credentials, timeout, rate limit, empty response, unsupported asset and upstream failure have explicit states.
 
-## Diagnostic Commands
+## Run and verify
 
-- `npm run install:ci`: perform the one locked dependency install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build the deployable Sites artifact
-- `npm run start`: preview the built Worker locally with D1/R2 support
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+Node.js `>=22.13.0` is required.
 
-When using the Sites plugin, follow its skill instructions for installation, builds, and publishing. These npm commands remain available for standalone use.
+```bash
+npm run install:ci
+npm test
+npm run build
+npm run dev
+```
 
-The portable build runs Vinext directly without a host `timeout` command. The managed-linux build uses `scripts/build-verified.sh` and its existing `SITES_BUILD_TIMEOUT` setting.
+## Four-minute judge demo
 
-## Learn More
+1. **0:00–0:30 — Thesis.** Read the hero, point to the selected xStock/BSC proof and explain the status vocabulary.
+2. **0:30–1:15 — Evidence.** Open Integration Proof, follow BscScan contract/block links, and show Binance as LIVE only if the key is configured.
+3. **1:15–2:10 — Intelligence.** Open Ghost Brain and Ghost Score. Show deterministic consensus and the labeled unconfirmed hypothesis.
+4. **2:10–2:55 — Break the Consensus.** Inject the demo outlier and show the weaker source losing influence.
+5. **2:55–3:25 — Research.** Ask for the strangest anomaly; the answer identifies DEMO VENUE B and cites its spread.
+6. **3:25–4:00 — Morning After.** Compare overnight consensus with the simulated open, then finish on the system path and limits.
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+## Hackathon readiness
+
+- [x] Clear first-screen thesis and guided tour
+- [x] EN/ES, Simple/Pro and responsive navigation
+- [x] Verifiable BSC contract/block evidence
+- [x] Honest LIVE, SIMULATED and UNAVAILABLE provenance
+- [x] Deterministic outlier demo with cleanup
+- [x] Consistent Ghost Score calculation across assets
+- [x] Build and engine/error tests
+- [ ] Configure `BINANCE_API_KEY` in hosting for live Binance quote proof
+- [ ] Add a verified DEX/oracle adapter for price and liquidity
+- [ ] Add Wallet Skill / ERC-8004 proof if entering an agent track
+- [ ] Publish a public GitHub repository and attach the Developer Experience Report
+
+## Developer Experience Report template
+
+- **Integration attempted:** BNB Chain public RPC and Binance Stocks Trading Market Data
+- **What worked:** contract/block reads, server-only API boundary, explicit error taxonomy
+- **Friction:** endpoint/auth assumptions, credential provisioning, symbol mapping
+- **Errors observed:** include HTTP status, request ID and timestamp; never include the API key
+- **Suggested improvements:** minimal quote example, response schemas and sandbox behavior
+- **Reproduction:** Node version, commit SHA, symbol, endpoint and UTC timestamp
+
+## Safety
+
+Ghost Market is analytical software, not financial advice. The replay, scores, council, social narrative, research and morning open are simulations and may be wrong. The beta cannot create or submit transactions.

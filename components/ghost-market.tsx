@@ -14,7 +14,7 @@ import { CinematicIntro } from "@/ui/cinematic-intro";
 import { IntelligenceLayer } from "@/ui/intelligence-layer";
 import { MarketConstellation } from "@/ui/market-constellation";
 import { JudgeTour } from "@/ui/judge-tour";
-import { BnbHeroEvidence, OnchainEvidence, useBnbEvidence } from "@/ui/onchain-evidence";
+import { BnbHeroEvidence, OnchainEvidence, useIntegrationEvidence } from "@/ui/onchain-evidence";
 import { ReplayControls } from "@/ui/replay-controls";
 import { UnderTheGhost } from "@/ui/under-the-ghost";
 
@@ -28,7 +28,7 @@ const compact = (value: number) => new Intl.NumberFormat("en-US", { notation: "c
 const tr = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
 
 export default function GhostMarket() {
-  const [symbol, setSymbol] = useState<SymbolKey>("NVDA");
+  const [symbol, setSymbol] = useState<SymbolKey>("AAPL");
   const [view, setView] = useState<View>("replay");
   const [locale, setLocale] = useState<Locale>("en");
   const [mode, setMode] = useState<Mode>("simple");
@@ -41,8 +41,10 @@ export default function GhostMarket() {
   const [demoStep, setDemoStep] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const progressRef = useRef(progress);
-  const { evidence: bnbEvidence, loading: bnbLoading, reload: reloadBnbEvidence } = useBnbEvidence();
+  const breakTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const { evidence: bnbEvidence, binance: binanceIntegration, loading: bnbLoading, reload: reloadEvidence } = useIntegrationEvidence(symbol);
   const finishIntro = useCallback(() => setIntroVisible(false), []);
+  const clearBreakTimers = useCallback(() => { breakTimersRef.current.forEach(clearTimeout); breakTimersRef.current = []; }, []);
 
   useEffect(() => {
     const savedLocale = localStorage.getItem("ghost-locale");
@@ -82,7 +84,9 @@ export default function GhostMarket() {
     return () => cancelAnimationFrame(animationFrame);
   }, [playing]);
   useEffect(() => { if (progress < 0.999 || playing) return; const timer = setTimeout(() => setView("morning"), 850); return () => clearTimeout(timer); }, [progress, playing]);
-  useEffect(() => { setProgress(0); setPlaying(false); setView("replay"); setBreakStage(0); }, [symbol]);
+  useEffect(() => { clearBreakTimers(); setProgress(0); setPlaying(false); setBreakStage(0); }, [symbol, clearBreakTimers]);
+  useEffect(() => () => clearBreakTimers(), [clearBreakTimers]);
+  useEffect(() => { if (view === "morning") { clearBreakTimers(); setBreakStage(0); } }, [view, clearBreakTimers]);
   useEffect(() => {
     const context = document.modelContext;
     if (!context?.registerTool) return;
@@ -92,14 +96,15 @@ export default function GhostMarket() {
   }, []);
 
   const scrub = (next: number) => { setPlaying(false); setProgress(next); setView("replay"); };
-  const reset = () => { setPlaying(false); setProgress(0); setView("replay"); setBreakStage(0); };
+  const reset = () => { clearBreakTimers(); setPlaying(false); setProgress(0); setView("replay"); setBreakStage(0); };
   const runBreakExperiment = () => {
+    clearBreakTimers();
     if (breakStage > 0) { setBreakStage(0); return; }
     setPlaying(false); setView("replay"); setProgress(0.62); setBreakStage(1);
-    [2, 3, 4].forEach((stage, index) => setTimeout(() => setBreakStage(stage), [900, 2600, 4600][index]));
+    breakTimersRef.current = [2, 3, 4].map((stage, index) => setTimeout(() => setBreakStage(stage), [900, 2600, 4600][index]));
   };
   const jumpToAnomaly = () => { setView("replay"); setProgress(617 / 1049); setPlaying(false); setTimeout(() => document.getElementById("observatory")?.scrollIntoView({ behavior: "smooth" }), 40); };
-  const enterMarket = () => document.getElementById("observatory")?.scrollIntoView({ behavior: "smooth" });
+  const enterMarket = () => document.getElementById("market")?.scrollIntoView({ behavior: "smooth" });
   const baseGhostScore = calculateGhostScore(session.close, intelligenceFrame.venues, intelligenceConsensus, intelligenceConfidence);
 
   useEffect(() => {
@@ -114,19 +119,19 @@ export default function GhostMarket() {
   return <TooltipProvider><main className={`ghost-app ${mode === "simple" ? "simple-mode" : "pro-mode"} min-h-screen overflow-hidden bg-[#060807] text-[#f2f0e8]`}>
     {introVisible && <CinematicIntro locale={locale} onDone={finishIntro}/>}<div className="noise" aria-hidden="true" />
     <Header view={view} onView={setView} locale={locale} onLocale={changeLocale} mode={mode} onMode={changeMode} mobileOpen={mobileMenuOpen} onMobileOpen={setMobileMenuOpen}/>
-    <div className="ghost-status"><i/><span>GHOST // {breakStage > 0 ? "ANOMALY DETECTED" : playing ? "ANALYZING" : "LISTENING"}</span><b>3 {tr(locale, "simulated markets indexed", "mercados simulados indexados")} · {tr(locale, "deterministic replay", "replay determinista")}</b></div>
-    <section className="hero-band" id="overview"><div className="hero-copy"><p className="status-line"><span/> WALL STREET · {tr(locale, "CLOSED", "CERRADO")}</p><h1>WALL STREET SLEEPS.<br/><em>THE MARKET DOESN&apos;T.</em></h1><p>{tr(locale, "AI-powered intelligence for tokenized stocks after hours.", "Inteligencia impulsada por IA para acciones tokenizadas fuera de horario.")}</p><div className="hero-actions"><button onClick={() => setDemoStep(0)}>{tr(locale, "WATCH THE 60-SECOND BNB DEMO", "VER DEMO BNB DE 60 SEGUNDOS")}</button><button onClick={enterMarket}>{tr(locale, "EXPLORE FREELY", "EXPLORAR LIBREMENTE")}</button></div><div className="hero-stats"><span><b>27</b>{tr(locale, "assets monitored", "activos monitoreados")}</span><span><b>4</b>{tr(locale, "anomalies detected", "anomalías detectadas")}</span><span><b>1</b>{tr(locale, "strong signal", "señal fuerte")}</span><DataLabel/></div></div><div className="hero-controls"><BnbHeroEvidence locale={locale} evidence={bnbEvidence} loading={bnbLoading} onOpen={() => document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" })}/><SymbolPicker locale={locale} symbol={symbol} company={session.company} open={pickerOpen} onOpen={setPickerOpen} onSelect={setSymbol}/></div></section>
-    <OnchainEvidence locale={locale} evidence={bnbEvidence} loading={bnbLoading} reload={reloadBnbEvidence}/>
+    <div className="ghost-status"><i/><span>GHOST // {breakStage > 0 && view === "replay" ? "ANOMALY DETECTED" : playing ? "ANALYZING" : "LISTENING"}</span><b>3 {tr(locale, "simulated markets indexed", "mercados simulados indexados")} · {tr(locale, "deterministic replay", "replay determinista")}</b></div>
+    <section className="hero-band" id="overview"><div className="hero-copy"><p className="status-line"><span/> WALL STREET · {tr(locale, "CLOSED", "CERRADO")}</p><h1>WALL STREET SLEEPS.<br/><em>THE MARKET DOESN&apos;T.</em></h1><p>{tr(locale, "Evidence-led intelligence for tokenized stocks after hours: live BSC contract proof plus a deterministic market simulation.", "Inteligencia basada en evidencia para acciones tokenizadas fuera de horario: contrato verificado en BSC más una simulación determinista del mercado.")}</p><div className="hero-actions"><button onClick={() => setDemoStep(0)}>{tr(locale, "WATCH THE 60-SECOND BNB DEMO", "VER DEMO BNB DE 60 SEGUNDOS")}</button><button onClick={enterMarket}>{tr(locale, "EXPLORE FREELY", "EXPLORAR LIBREMENTE")}</button></div><div className="hero-stats"><span><b>3</b>{tr(locale, "demo assets", "activos demo")}</span><span><b>1</b>{tr(locale, "selected xStock verified", "xStock seleccionado verificado")}</span><span><b>1</b>{tr(locale, "deterministic stress test", "prueba determinista")}</span><DataLabel/></div></div><div className="hero-controls"><BnbHeroEvidence locale={locale} evidence={bnbEvidence} binance={binanceIntegration} loading={bnbLoading} onOpen={() => document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" })}/><SymbolPicker locale={locale} symbol={symbol} company={session.company} open={pickerOpen} onOpen={setPickerOpen} onSelect={setSymbol}/></div></section>
+    <OnchainEvidence locale={locale} evidence={bnbEvidence} binance={binanceIntegration} loading={bnbLoading} reload={reloadEvidence}/>
     <IntelligenceLayer locale={locale} symbol={symbol} session={session} venues={intelligenceFrame.venues} consensus={intelligenceConsensus} confidence={intelligenceConfidence} ghostScore={baseGhostScore} onInvestigate={() => document.getElementById("discover")?.scrollIntoView({ behavior: "smooth" })} onReplayMoment={jumpToAnomaly} onSelectSymbol={(next) => { setSymbol(next); setTimeout(() => document.getElementById("market")?.scrollIntoView({ behavior: "smooth" }), 80); }}/>
     {view === "replay" ? <section className="observatory-shell" id="observatory"><div className="observatory-topline"><span>MARKET CONSTELLATION / {symbol}</span><span>{tr(locale, "SIMULATED NIGHT · OCT 04–05", "NOCHE SIMULADA · 04–05 OCT")}</span><DataLabel/></div><div className="observatory-layout"><div className="constellation-column"><MarketConstellation locale={locale} reference={session.close} venues={observedVenues} consensus={consensus} confidence={confidence} removedIds={new Set()} breakMode={breakStage > 0} currentEvent={currentEvent} onVenue={setSelectedVenue}/>{breakStage >= 2 && <ImpactStrip locale={locale} beforePrice={baselineConsensus.price} afterPrice={consensus.price} beforeConfidence={baselineConfidence.score} afterConfidence={confidence.score}/>}<ReplayControls locale={locale} progress={progress} playing={playing} currentTime={frame.time} events={session.events} maxMinute={session.frames.at(-1)!.atMinute} onPlay={() => setPlaying((value) => !value)} onReset={reset} onScrub={scrub}/></div><EnginePanel locale={locale} venues={observedVenues} consensus={consensus} confidence={confidence} breakStage={breakStage} baselineConsensus={baselineConsensus} onBreak={runBreakExperiment}/></div></section> : <div id="morning-after"><MorningAfter locale={locale} symbol={symbol} session={session} onReplay={() => { reset(); setPlaying(true); }}/></div>} 
     <UnderTheGhost locale={locale}/>
-    <footer className="site-footer"><span>GHOST MARKET BETA 0.4 · BNB CHAIN TOKENIZED MARKETS</span><span>{tr(locale, "Ghost Market provides market intelligence and analytical tools. It does not provide financial advice. Simulated scenarios may be incorrect.", "Ghost Market ofrece herramientas de inteligencia y análisis de mercado. No proporciona asesoramiento financiero. Los escenarios simulados pueden ser incorrectos.")}</span></footer>
+    <footer className="site-footer"><span>GHOST MARKET BETA 0.5 · BNB CHAIN TOKENIZED MARKETS</span><span>{tr(locale, "Ghost Market provides market intelligence and analytical tools. It does not provide financial advice. Simulated scenarios may be incorrect.", "Ghost Market ofrece herramientas de inteligencia y análisis de mercado. No proporciona asesoramiento financiero. Los escenarios simulados pueden ser incorrectos.")}</span></footer>
     <VenueSheet locale={locale} venue={selectedVenue} weight={selectedVenue ? consensus.weights.find((item) => item.venueId === selectedVenue.id) : undefined} referencePrice={session.close.price} onOpenChange={(open) => !open && setSelectedVenue(null)}/>{demoStep !== null && <JudgeTour locale={locale} step={demoStep} onStep={setDemoStep} onExit={() => setDemoStep(null)}/>} 
   </main></TooltipProvider>;
 }
 
 function Header({ view, onView, locale, onLocale, mode, onMode, mobileOpen, onMobileOpen }: { view: View; onView: (view: View) => void; locale: Locale; onLocale: (locale: Locale) => void; mode: Mode; onMode: (mode: Mode) => void; mobileOpen: boolean; onMobileOpen: (open: boolean) => void }) {
-  const nav = [[tr(locale, "OVERVIEW", "RESUMEN"), "overview"], [tr(locale, "BRAIN", "CEREBRO"), "market"], [tr(locale, "EVIDENCE", "EVIDENCIA"), "evidence"], [tr(locale, "COUNCIL", "CONSEJO"), "council"], [tr(locale, "SCENARIOS", "ESCENARIOS"), "scenarios"], [tr(locale, "RESEARCH", "INVESTIGACIÓN"), "discover"], ["REPLAY", "observatory"], ["BNB TECH", "under-the-ghost"]] as const;
+  const nav = [[tr(locale, "OVERVIEW", "RESUMEN"), "overview"], [tr(locale, "BRAIN", "CEREBRO"), "market"], [tr(locale, "EVIDENCE", "EVIDENCIA"), "evidence"], [tr(locale, "COUNCIL", "CONSEJO"), "council"], [tr(locale, "SCENARIOS", "ESCENARIOS"), "scenarios"], [tr(locale, "RESEARCH", "INVESTIGACIÓN"), "discover"], ["REPLAY", "observatory"], [tr(locale, "SYSTEM", "SISTEMA"), "under-the-ghost"]] as const;
   const [activeSection, setActiveSection] = useState("overview");
   useEffect(() => {
     const ids = [...nav.map(([, id]) => id), "morning-after"];
