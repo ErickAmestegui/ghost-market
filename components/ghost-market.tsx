@@ -1,104 +1,148 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, CircleHelp, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, CircleHelp, FlaskConical, Search, Wallet, X } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  calculateGhostConfidence, calculateGhostConsensus, calculateReopenError,
-  formatAge, formatCompactCurrency, getMarketFixture, getOnChainMarkets,
-  getTraditionalMarketData, symbols, type OnChainVenue, type SymbolKey,
-} from "@/lib/market-data";
+import { marketDataAdapter } from "@/data/adapters";
+import type { ConsensusWeight, GhostEvent, GhostSession, Locale, SymbolKey, VenueObservation } from "@/data/types";
+import { calculateGhostConfidence } from "@/engine/confidence";
+import { calculateGhostConsensus } from "@/engine/consensus";
+import { calculateGhostScore } from "@/engine/ghost-score";
+import { calculateReopenError, getCurrentEvent, getReplayFrame } from "@/engine/replay";
+import { CinematicIntro } from "@/ui/cinematic-intro";
+import { IntelligenceLayer } from "@/ui/intelligence-layer";
+import { MarketConstellation } from "@/ui/market-constellation";
+import { ReplayControls } from "@/ui/replay-controls";
+import { UnderTheGhost } from "@/ui/under-the-ghost";
 
-type Mode = "live" | "historical";
+type View = "replay" | "morning";
+type Mode = "simple" | "pro";
 declare global { interface Document { modelContext?: { registerTool: (tool: Record<string, unknown>, options?: { signal?: AbortSignal }) => void | Promise<void> } } }
+
+const SYMBOLS: Array<{ symbol: SymbolKey; company: string }> = [{ symbol: "NVDA", company: "NVIDIA" }, { symbol: "AAPL", company: "Apple" }, { symbol: "TSLA", company: "Tesla" }];
 const money = (value: number) => `$${value.toFixed(2)}`;
+const compact = (value: number) => new Intl.NumberFormat("en-US", { notation: "compact", style: "currency", currency: "USD", maximumFractionDigits: 1 }).format(value);
+const tr = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
 
 export default function GhostMarket() {
   const [symbol, setSymbol] = useState<SymbolKey>("NVDA");
-  const [mode, setMode] = useState<Mode>("live");
+  const [view, setView] = useState<View>("replay");
+  const [locale, setLocale] = useState<Locale>("en");
+  const [mode, setMode] = useState<Mode>("simple");
+  const [introVisible, setIntroVisible] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedVenue, setSelectedVenue] = useState<OnChainVenue | null>(null);
-  const fixture = getMarketFixture(symbol);
-  const traditional = getTraditionalMarketData(symbol);
-  const venues = getOnChainMarkets(symbol);
-  const consensus = useMemo(() => calculateGhostConsensus(venues), [venues]);
-  const confidence = calculateGhostConfidence(traditional, venues);
-  const premium = ((consensus - traditional.price) / traditional.price) * 100;
-  const reopenError = calculateReopenError(consensus, fixture.historicalReopen);
+  const [selectedVenue, setSelectedVenue] = useState<VenueObservation | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [breakStage, setBreakStage] = useState(0);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const progressRef = useRef(progress);
+  const finishIntro = useCallback(() => setIntroVisible(false), []);
 
+  useEffect(() => {
+    const savedLocale = localStorage.getItem("ghost-locale");
+    const savedMode = localStorage.getItem("ghost-mode");
+    if (savedLocale === "en" || savedLocale === "es") setLocale(savedLocale);
+    if (savedMode === "simple" || savedMode === "pro") setMode(savedMode);
+  }, []);
+  const changeLocale = (next: Locale) => { setLocale(next); localStorage.setItem("ghost-locale", next); };
+  const changeMode = (next: Mode) => { setMode(next); localStorage.setItem("ghost-mode", next); };
+  useEffect(() => { document.documentElement.lang = locale; }, [locale]);
+
+  const session = marketDataAdapter.getSession(symbol);
+  const frame = useMemo(() => getReplayFrame(session, progress), [session, progress]);
+  const intelligenceFrame = useMemo(() => getReplayFrame(session, 0.68), [session]);
+  const intelligenceConsensus = useMemo(() => calculateGhostConsensus(intelligenceFrame.venues), [intelligenceFrame.venues]);
+  const intelligenceConfidence = useMemo(() => calculateGhostConfidence(session.close, intelligenceFrame.venues, intelligenceConsensus), [session.close, intelligenceFrame.venues, intelligenceConsensus]);
+  const observedVenues = useMemo(() => frame.venues.map((venue) => venue.id !== "b" || breakStage < 2 ? venue : {
+    ...venue, price: Math.round((venue.price + 3.76) * 100) / 100, quoteAgeSeconds: 83, reliability: 0.62,
+    liquidity: { availableUsd: Math.round(venue.liquidity.availableUsd * 0.18), activityUsd: Math.round(venue.liquidity.activityUsd * 0.31), spreadBps: 96 },
+  }), [frame.venues, breakStage]);
+  const consensus = useMemo(() => calculateGhostConsensus(observedVenues), [observedVenues]);
+  const baselineConsensus = useMemo(() => calculateGhostConsensus(frame.venues), [frame.venues]);
+  const confidence = useMemo(() => calculateGhostConfidence(session.close, observedVenues, consensus), [session.close, observedVenues, consensus]);
+  const baselineConfidence = useMemo(() => calculateGhostConfidence(session.close, frame.venues, baselineConsensus), [session.close, frame.venues, baselineConsensus]);
+  const normalEvent = useMemo(() => getCurrentEvent(session, progress), [session, progress]);
+  const currentEvent: GhostEvent = breakStage > 0 ? { id: "break", atMinute: 0, time: "02:17 AM", type: "PRICE_DIVERGENCE", venueId: "b", severity: "critical", title: breakStage < 2 ? "INJECTING SIMULATED OUTLIER" : breakStage < 4 ? "UNUSUAL DIVERGENCE DETECTED" : "SIGNAL DOWN-WEIGHTED", detail: tr(locale, breakStage < 2 ? "A controlled demo event is beginning." : breakStage < 4 ? "Ghost is checking liquidity, spread, freshness and agreement." : "Ghost did not blindly follow the outlier price.", breakStage < 2 ? "Comienza un evento demo controlado." : breakStage < 4 ? "Ghost revisa liquidez, spread, frescura y acuerdo." : "Ghost no siguió ciegamente el precio atípico.") } : normalEvent;
+
+  useEffect(() => { progressRef.current = progress; }, [progress]);
+  useEffect(() => {
+    if (!playing) return;
+    let animationFrame = 0;
+    const initial = progressRef.current >= 0.999 ? 0 : progressRef.current;
+    if (initial === 0 && progressRef.current >= 0.999) setProgress(0);
+    const startedAt = performance.now();
+    const tick = (now: number) => { const next = Math.min(1, initial + (now - startedAt) / 15_000); setProgress(next); if (next < 1) animationFrame = requestAnimationFrame(tick); else setPlaying(false); };
+    animationFrame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [playing]);
+  useEffect(() => { if (progress < 0.999 || playing) return; const timer = setTimeout(() => setView("morning"), 850); return () => clearTimeout(timer); }, [progress, playing]);
+  useEffect(() => { setProgress(0); setPlaying(false); setView("replay"); setBreakStage(0); }, [symbol]);
   useEffect(() => {
     const context = document.modelContext;
     if (!context?.registerTool) return;
     const lifecycle = new AbortController();
-    try {
-      void Promise.resolve(context.registerTool({
-        name: "select_market_view", title: "Seleccionar vista de mercado",
-        description: "Selecciona una acción compatible y cambia entre el escáner en vivo y la comprobación histórica de reapertura.",
-        inputSchema: { type: "object", properties: { symbol: { type: "string", enum: ["NVDA", "AAPL", "TSLA"] }, mode: { type: "string", enum: ["live", "historical"] } }, required: ["symbol", "mode"], additionalProperties: false },
-        annotations: { readOnlyHint: false, untrustedContentHint: false },
-        execute(input: unknown) {
-          const next = input as { symbol?: SymbolKey; mode?: Mode };
-          if (!next || !symbols.some((item) => item.symbol === next.symbol) || !["live", "historical"].includes(next.mode ?? "")) throw new Error("Elige un símbolo y un modo compatibles.");
-          setSymbol(next.symbol!); setMode(next.mode!); return { symbol: next.symbol, mode: next.mode };
-        },
-      }, { signal: lifecycle.signal })).catch(() => undefined);
-    } catch {}
+    try { void Promise.resolve(context.registerTool({ name: "control_ghost_market", title: "Control Ghost Market", description: "Select an asset and open Ghost Replay or The Morning After.", inputSchema: { type: "object", properties: { symbol: { type: "string", enum: ["NVDA", "AAPL", "TSLA"] }, view: { type: "string", enum: ["replay", "morning"] } }, required: ["symbol", "view"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute(input: unknown) { const next = input as { symbol?: SymbolKey; view?: View }; if (!next || !SYMBOLS.some((item) => item.symbol === next.symbol) || !["replay", "morning"].includes(next.view ?? "")) throw new Error("Choose a supported symbol and view."); setSymbol(next.symbol!); setView(next.view!); return next; } }, { signal: lifecycle.signal })).catch(() => undefined); } catch {}
     return () => lifecycle.abort();
   }, []);
 
-  return <TooltipProvider><main className="min-h-screen overflow-hidden bg-[#070908] text-[#f2f0e8]">
-    <div className="noise" aria-hidden="true" />
-    <header className="relative z-30 mx-auto flex h-20 max-w-[1480px] items-center justify-between border-b border-white/[0.08] px-5 sm:px-8 lg:px-12">
-      <div className="flex items-center gap-3"><GhostMark/><span className="font-display text-lg tracking-[0.16em]">GHOST MARKET</span></div>
-      <div className="flex items-center gap-3 sm:gap-6">
-        <nav aria-label="Market view" className="flex items-center rounded-full border border-white/10 bg-white/[0.025] p-1 text-[11px] tracking-[0.13em]">
-          {(["live", "historical"] as Mode[]).map((item) => <button key={item} onClick={() => setMode(item)} className={`rounded-full px-3 py-2 transition sm:px-4 ${mode === item ? "bg-[#d6f5e9] text-[#07100d]" : "text-[#8d9691] hover:text-white"}`}>{item === "live" ? "EN VIVO" : "HISTÓRICO"}</button>)}
-        </nav><DemoBadge/>
-      </div>
-    </header>
-    <section className="relative z-10 mx-auto max-w-[1480px] px-5 pb-10 pt-10 sm:px-8 lg:px-12 lg:pt-12">
-      <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-10">
-        <div>
-          <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div><p className="mb-3 flex items-center gap-2 text-xs tracking-[0.2em] text-[#eb7f5e]"><span className="h-1.5 w-1.5 rounded-full bg-[#eb7f5e] shadow-[0_0_12px_#eb7f5e]"/> WALL STREET ESTÁ CERRADO</p><h1 className="font-display max-w-[850px] text-[clamp(2.25rem,5vw,5.1rem)] leading-[0.94] tracking-[-0.035em]">LOS MERCADOS ON-CHAIN<br/><span className="text-[#b8d8ce]">SIGUEN EN MOVIMIENTO</span></h1></div>
-            <div className="relative w-full md:w-[290px]"><p className="mb-2 text-[10px] tracking-[0.2em] text-[#67716c]">INSTRUMENTO ANALIZADO</p><button onClick={() => setPickerOpen(!pickerOpen)} aria-expanded={pickerOpen} className="flex w-full items-center justify-between border-b border-white/20 py-3 text-left transition hover:border-[#9ee8d1]"><span className="flex items-center gap-3"><Search className="h-4 w-4 text-[#7b8781]"/><span><b className="font-medium">{fixture.company}</b> <span className="ml-2 text-sm text-[#78817d]">{symbol}</span></span></span><ChevronDown className={`h-4 w-4 transition ${pickerOpen ? "rotate-180" : ""}`}/></button>
-              {pickerOpen && <div className="absolute right-0 z-40 mt-2 w-full border border-white/10 bg-[#0d110f]/95 p-1 shadow-2xl backdrop-blur-xl">{symbols.map((item) => <button key={item.symbol} onClick={() => { setSymbol(item.symbol); setPickerOpen(false); }} className={`flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-white/5 ${symbol === item.symbol ? "text-[#9ee8d1]" : "text-[#d7d8d2]"}`}><span>{item.company}</span><span className="font-mono text-xs text-[#6e7773]">{item.symbol}</span></button>)}</div>}
-            </div>
-          </div>
-          {mode === "live" ? <Scanner traditional={traditional} venues={venues} consensus={consensus} premium={premium} symbol={symbol} onVenue={setSelectedVenue}/> : <Historical fixture={fixture} consensus={consensus} reopenError={reopenError}/>} 
-        </div>
-        <ConfidencePanel score={confidence} traditionalAge={traditional.referenceAgeMinutes}/>
-      </div>
-      <footer className="mt-8 flex flex-col gap-3 border-t border-white/[0.07] pt-5 text-[10px] tracking-[0.14em] text-[#5f6864] sm:flex-row sm:items-center sm:justify-between"><span>OBSERVACIÓN SIMULADA DE MERCADOS TOKENIZADOS · NO ES UN PRODUCTO DE INVERSIÓN</span><span>PRECIOS ACTUALIZADOS SOLO PARA DEMOSTRACIÓN</span></footer>
-    </section>
-    <VenueSheet venue={selectedVenue} traditionalPrice={traditional.price} referenceAge={traditional.referenceAgeMinutes} onOpenChange={(open) => !open && setSelectedVenue(null)}/>
+  const scrub = (next: number) => { setPlaying(false); setProgress(next); setView("replay"); };
+  const reset = () => { setPlaying(false); setProgress(0); setView("replay"); setBreakStage(0); };
+  const runBreakExperiment = () => {
+    if (breakStage > 0) { setBreakStage(0); return; }
+    setPlaying(false); setView("replay"); setProgress(0.62); setBreakStage(1);
+    [2, 3, 4].forEach((stage, index) => setTimeout(() => setBreakStage(stage), [900, 2600, 4600][index]));
+  };
+  const jumpToAnomaly = () => { setView("replay"); setProgress(617 / 1049); setPlaying(false); setTimeout(() => document.getElementById("observatory")?.scrollIntoView({ behavior: "smooth" }), 40); };
+  const enterMarket = () => document.getElementById("observatory")?.scrollIntoView({ behavior: "smooth" });
+  const baseGhostScore = calculateGhostScore(session.close, intelligenceFrame.venues, intelligenceConsensus, intelligenceConfidence);
+
+  return <TooltipProvider><main className={`ghost-app ${mode === "simple" ? "simple-mode" : "pro-mode"} min-h-screen overflow-hidden bg-[#060807] text-[#f2f0e8]`}>
+    {introVisible && <CinematicIntro locale={locale} onDone={finishIntro}/>}<div className="noise" aria-hidden="true" />
+    <Header view={view} onView={setView} locale={locale} onLocale={changeLocale} mode={mode} onMode={changeMode} walletConnected={walletConnected} onWallet={() => setWalletConnected((value) => !value)}/>
+    <div className="ghost-status"><i/><span>GHOST // {breakStage > 0 ? "ANOMALY DETECTED" : playing ? "ANALYZING" : "LISTENING"}</span><b>3 {tr(locale, "markets connected", "mercados conectados")} · {tr(locale, "last signal 4s ago", "última señal hace 4s")}</b></div>
+    <section className="hero-band"><div className="hero-copy"><p className="status-line"><span/> WALL STREET · {tr(locale, "CLOSED", "CERRADO")}</p><h1>WALL STREET SLEEPS.<br/><em>THE MARKET DOESN&apos;T.</em></h1><p>{tr(locale, "AI-powered intelligence for tokenized stocks after hours.", "Inteligencia impulsada por IA para acciones tokenizadas fuera de horario.")}</p><div className="hero-actions"><button onClick={enterMarket}>{tr(locale, "ENTER GHOST MARKET", "ENTRAR A GHOST MARKET")}</button><button onClick={() => document.getElementById("ask-ghost")?.scrollIntoView({ behavior: "smooth" })}>ASK GHOST</button></div><div className="hero-stats"><span><b>27</b>{tr(locale, "assets monitored", "activos monitoreados")}</span><span><b>4</b>{tr(locale, "anomalies detected", "anomalías detectadas")}</span><span><b>1</b>{tr(locale, "strong signal", "señal fuerte")}</span><DemoBadge/></div></div><div className="hero-controls"><div className="alive-status"><span>GHOST MARKET</span><strong><i/> AWAKE</strong></div><SymbolPicker locale={locale} symbol={symbol} company={session.company} open={pickerOpen} onOpen={setPickerOpen} onSelect={setSymbol}/></div></section>
+    <IntelligenceLayer locale={locale} symbol={symbol} session={session} venues={intelligenceFrame.venues} consensus={intelligenceConsensus} confidence={intelligenceConfidence} ghostScore={baseGhostScore} onInvestigate={enterMarket} onReplayMoment={jumpToAnomaly}/>
+    {view === "replay" ? <section className="observatory-shell" id="observatory"><div className="observatory-topline"><span>MARKET CONSTELLATION / {symbol}</span><span>{tr(locale, "SIMULATED NIGHT · OCT 04–05", "NOCHE SIMULADA · 04–05 OCT")}</span><DemoBadge/></div><div className="observatory-layout"><div className="constellation-column"><MarketConstellation locale={locale} reference={session.close} venues={observedVenues} consensus={consensus} confidence={confidence} removedIds={new Set()} breakMode={breakStage > 0} currentEvent={currentEvent} onVenue={setSelectedVenue}/>{breakStage >= 2 && <ImpactStrip locale={locale} beforePrice={baselineConsensus.price} afterPrice={consensus.price} beforeConfidence={baselineConfidence.score} afterConfidence={confidence.score}/>}<ReplayControls locale={locale} progress={progress} playing={playing} currentTime={frame.time} events={session.events} maxMinute={session.frames.at(-1)!.atMinute} onPlay={() => setPlaying((value) => !value)} onReset={reset} onScrub={scrub}/></div><EnginePanel locale={locale} venues={observedVenues} consensus={consensus} confidence={confidence} breakStage={breakStage} baselineConsensus={baselineConsensus} onBreak={runBreakExperiment}/></div></section> : <MorningAfter locale={locale} symbol={symbol} session={session} onReplay={() => { reset(); setPlaying(true); }}/>} 
+    <UnderTheGhost locale={locale}/>
+    <footer className="site-footer"><span>GHOST MARKET BETA 0.3 · BNB CHAIN TOKENIZED MARKETS</span><span>{tr(locale, "Ghost Market provides market intelligence and analytical tools. It does not provide financial advice. AI-generated scenarios may be incorrect.", "Ghost Market ofrece herramientas de inteligencia y análisis de mercado. No proporciona asesoramiento financiero. Los escenarios generados por IA pueden ser incorrectos.")}</span></footer>
+    <VenueSheet locale={locale} venue={selectedVenue} weight={selectedVenue ? consensus.weights.find((item) => item.venueId === selectedVenue.id) : undefined} referencePrice={session.close.price} onOpenChange={(open) => !open && setSelectedVenue(null)}/>
   </main></TooltipProvider>;
 }
 
-function Scanner({ traditional, venues, consensus, premium, symbol, onVenue }: { traditional: ReturnType<typeof getTraditionalMarketData>; venues: OnChainVenue[]; consensus: number; premium: number; symbol: SymbolKey; onVenue: (v: OnChainVenue) => void }) {
-  return <div className="scanner-shell relative min-h-[580px] overflow-hidden border border-white/[0.1] bg-[#0a0d0b]/75 px-4 py-7 sm:px-8 sm:py-8"><div className="scan-beam" aria-hidden="true"/><div className="absolute inset-x-0 top-0 flex items-center justify-between border-b border-white/[0.06] px-5 py-3 text-[9px] tracking-[0.2em] text-[#53605a] sm:px-8"><span>ESCÁNER DE PRECIO FANTASMA / {symbol}</span><span className="flex items-center gap-2"><i className="live-dot"/> OBSERVANDO</span></div>
-    <div className="relative z-10 mx-auto flex max-w-[920px] flex-col items-center pt-12"><div className="frozen-node text-center"><p className="instrument-label">REFERENCIA TRADICIONAL <span className="ml-2 text-[#e88768]">CONGELADA</span></p><div className="font-display mt-2 text-4xl tracking-tight text-[#d7d5ce] sm:text-5xl">{money(traditional.price)}</div><p className="mt-2 font-mono text-[11px] text-[#68716d]">ANTIGÜEDAD {formatAge(traditional.referenceAgeMinutes)} · MERCADO CERRADO</p></div><div className="relative h-16 w-[80%] max-w-[680px]" aria-hidden="true"><div className="frozen-line"/></div>
-      <div className="relative grid w-full grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5"><svg className="pointer-events-none absolute -top-6 left-0 hidden h-[170px] w-full overflow-visible sm:block" viewBox="0 0 900 170" preserveAspectRatio="none" aria-hidden="true"><path className="flow-path" d="M150,25 C200,100 390,78 450,155"/><path className="flow-path delay-1" d="M450,25 C450,90 450,105 450,155"/><path className="flow-path delay-2" d="M750,25 C700,100 510,78 450,155"/></svg>
-        {venues.map((venue,index) => <button key={venue.id} onClick={() => onVenue(venue)} className="venue-node group relative z-10 min-h-[118px] border border-[#9ee8d1]/20 bg-[#0c1512]/90 p-4 text-left transition hover:-translate-y-1 hover:border-[#9ee8d1]/60 hover:bg-[#10201a]"><span className="mb-4 flex items-center justify-between text-[10px] tracking-[0.15em] text-[#6f7c76]"><span>{venue.name.toUpperCase()}</span><i className={`venue-pulse pulse-${index}`}/></span><span className="font-display text-2xl text-[#d8f4e9] sm:text-3xl">{money(venue.price)}</span><span className="mt-2 flex justify-between font-mono text-[9px] text-[#66746e]"><span>{venue.network}</span><span>SPREAD {venue.spreadBps} BPS</span></span></button>)}
-      </div><div className="relative h-20 w-px bg-gradient-to-b from-[#9ee8d1]/35 to-[#9ee8d1]" aria-hidden="true"><span className="particle"/></div><div className="consensus-node relative w-full max-w-[430px] border border-[#a5f0d8]/45 bg-[#0b1713] px-6 py-6 text-center shadow-[0_0_70px_rgba(119,232,196,0.12)] sm:px-10"><div className="corner corner-a"/><div className="corner corner-b"/><p className="instrument-label text-[#9ee8d1]">CONSENSO FANTASMA</p><div className="font-display mt-2 text-5xl tracking-tight text-[#e6fff7] sm:text-6xl">{money(consensus)}</div><p className="mt-3 font-mono text-sm text-[#83d9bf]">+{premium.toFixed(2)}% <span className="text-[#61736c]">VS REFERENCIA TRADICIONAL</span></p></div>
-    </div></div>;
+function Header({ view, onView, locale, onLocale, mode, onMode, walletConnected, onWallet }: { view: View; onView: (view: View) => void; locale: Locale; onLocale: (locale: Locale) => void; mode: Mode; onMode: (mode: Mode) => void; walletConnected: boolean; onWallet: () => void }) {
+  return <header className="site-header"><div className="brand"><GhostMark/><span>GHOST MARKET</span><b>BETA 0.3</b></div><nav aria-label="Ghost Market"><button onClick={() => document.getElementById("market")?.scrollIntoView()}>MARKET</button><button onClick={() => document.getElementById("discover")?.scrollIntoView()}>DISCOVER</button><button onClick={() => document.getElementById("ghost-ai")?.scrollIntoView()}>GHOST AI</button><button className={view === "morning" ? "active" : ""} onClick={() => onView("morning")}>HISTORY</button></nav><div className="header-tools"><div className="mode-switch"><button className={mode === "simple" ? "active" : ""} onClick={() => onMode("simple")}>SIMPLE</button><button className={mode === "pro" ? "active" : ""} onClick={() => onMode("pro")}>PRO</button></div><div className="language-switch"><button className={locale === "en" ? "active" : ""} onClick={() => onLocale("en")}>EN</button><i>/</i><button className={locale === "es" ? "active" : ""} onClick={() => onLocale("es")}>ES</button></div><button className={`wallet-button ${walletConnected ? "connected" : ""}`} onClick={onWallet}><Wallet/>{walletConnected ? tr(locale, "CONNECTED", "CONECTADA") : tr(locale, "CONNECT WALLET", "CONECTAR WALLET")}</button></div></header>;
 }
 
-function ConfidencePanel({ score, traditionalAge }: { score: number; traditionalAge: number }) {
-  const checks = ["VARIOS MERCADOS COINCIDEN","LIQUIDEZ RAZONABLE","SPREADS OBSERVADOS ESTRECHOS"];
-  return <aside className="border-l border-white/[0.08] pl-0 lg:sticky lg:top-8 lg:pl-8"><div className="flex items-center justify-between border-b border-white/[0.08] pb-4"><span className="instrument-label">CONFIANZA FANTASMA</span><Tooltip><TooltipTrigger aria-label="¿Qué es la Confianza Fantasma?"><CircleHelp className="h-4 w-4 text-[#66716c]"/></TooltipTrigger><TooltipContent className="max-w-[280px] bg-[#dfece7] px-4 py-3 text-sm leading-relaxed text-[#101713]">Mide la calidad y el grado de acuerdo de los datos observados; no la probabilidad de ganar dinero.</TooltipContent></Tooltip></div><div className="my-7 flex items-end gap-3"><span className="font-display text-7xl leading-none text-[#dff8ef]">{score}</span><span className="mb-2 text-lg text-[#5d6863]">/ 100</span></div><p className="mb-6 text-sm tracking-[0.12em] text-[#9ee8d1]">CONFIANZA {score >= 85 ? "MODERADA–ALTA" : score >= 70 ? "MODERADA" : "BAJA–MODERADA"}</p><div className="score-track mb-8"><span style={{width:`${score}%`}}/></div><div className="space-y-4 border-t border-white/[0.08] pt-6 text-[11px] tracking-[0.07em]">{checks.map(item => <p key={item} className="flex gap-3 text-[#acb8b2]"><span className="text-[#85d9bf]">✓</span>{item}</p>)}<p className="flex gap-3 text-[#9e8c81]"><span className="text-[#dd896d]">△</span>LA REFERENCIA TRADICIONAL TIENE {formatAge(traditionalAge)}</p><p className="flex gap-3 text-[#9e8c81]"><span className="text-[#dd896d]">△</span>EL MERCADO TRADICIONAL ESTÁ CERRADO</p></div><div className="mt-9 border border-white/[0.08] p-4 text-xs leading-relaxed text-[#68736d]">La confianza describe la calidad de los datos y el acuerdo entre mercados. No predice rentabilidad ni precios futuros.</div></aside>;
+function SymbolPicker({ locale, symbol, company, open, onOpen, onSelect }: { locale: Locale; symbol: SymbolKey; company: string; open: boolean; onOpen: (open: boolean) => void; onSelect: (symbol: SymbolKey) => void }) {
+  return <div className="symbol-picker"><span>{tr(locale, "INSTRUMENT", "INSTRUMENTO")}</span><button onClick={() => onOpen(!open)} aria-expanded={open}><Search/><b>{company}</b><em>{symbol}</em><ChevronDown className={open ? "rotate" : ""}/></button>{open && <div className="symbol-menu">{SYMBOLS.map((item) => <button key={item.symbol} onClick={() => { onSelect(item.symbol); onOpen(false); }} className={symbol === item.symbol ? "selected" : ""}><span>{item.company}</span><b>{item.symbol}</b></button>)}</div>}</div>;
 }
 
-function Historical({ fixture, consensus, reopenError }: { fixture: ReturnType<typeof getMarketFixture>; consensus:number; reopenError:number }) {
-  return <div className="scanner-shell relative flex min-h-[580px] flex-col items-center justify-center overflow-hidden border border-white/[0.1] bg-[#0a0d0b]/75 px-5 py-16 text-center"><div className="historical-rings" aria-hidden="true"/><p className="relative z-10 mb-10 text-[10px] tracking-[0.22em] text-[#66726c]">{fixture.historicalLabel} · DATOS DEMO</p><div className="historical-step relative z-10"><span>CONSENSO FANTASMA FINAL</span><strong>{money(consensus)}</strong></div><div className="history-arrow">↓</div><div className="historical-step relative z-10"><span>REAPERTURA OFICIAL DEL MERCADO</span><strong>{money(fixture.historicalReopen)}</strong></div><div className="history-arrow">↓</div><div className="relative z-10 border border-[#9ee8d1]/35 bg-[#0c1713] px-10 py-6 shadow-[0_0_50px_rgba(119,232,196,0.09)]"><span className="instrument-label text-[#9ee8d1]">ERROR FANTASMA</span><div className="font-display mt-2 text-5xl text-[#e8fff7]">{reopenError.toFixed(2)}%</div></div><p className="relative z-10 mt-8 max-w-xl text-sm leading-relaxed text-[#7b8781]">La Comprobación de Reapertura mide qué tan cerca estuvo el consenso final on-chain de la siguiente referencia del mercado tradicional. Es una revisión retrospectiva de precisión, no una prueba de poder predictivo.</p></div>;
+function EnginePanel({ locale, venues, consensus, confidence, breakStage, baselineConsensus, onBreak }: { locale: Locale; venues: VenueObservation[]; consensus: ReturnType<typeof calculateGhostConsensus>; confidence: ReturnType<typeof calculateGhostConfidence>; breakStage: number; baselineConsensus: ReturnType<typeof calculateGhostConsensus>; onBreak: () => void }) {
+  return <aside className="engine-panel"><div className="engine-heading"><span>GHOST ENGINE</span><Tooltip><TooltipTrigger aria-label={tr(locale, "What Ghost Confidence means", "Qué significa Ghost Confidence")}><CircleHelp/></TooltipTrigger><TooltipContent className="max-w-[300px] bg-[#dfece7] px-4 py-3 text-sm leading-relaxed text-[#101713]">{tr(locale, "Measures data quality and agreement—not profit probability.", "Mide calidad y acuerdo de datos, no probabilidad de ganancia.")}</TooltipContent></Tooltip></div><div className="confidence-readout"><span>CONFIDENCE</span><strong>{confidence.score}<small>%</small></strong><em>{confidence.label}</em><div><span style={{ width: `${confidence.score}%` }}/></div></div><div className="weights-section"><div className="section-title"><span>SOURCE INFLUENCE</span><b>{tr(locale, "WHY THIS WEIGHT?", "¿POR QUÉ ESTE PESO?")}</b></div>{venues.map((venue) => { const weight = consensus.weights.find((item) => item.venueId === venue.id); const before = baselineConsensus.weights.find((item) => item.venueId === venue.id); return <div key={venue.id} className={`weight-row ${breakStage >= 2 && venue.id === "b" ? "outlier" : ""}`}><div><span><i/>{venue.name}</span><b>{breakStage >= 2 && venue.id === "b" ? `${Math.round((before?.weight ?? 0) * 100)}% → ` : ""}{Math.round((weight?.weight ?? 0) * 100)}%</b></div><p>{weightReason(locale, venue, weight)}</p><div><span style={{ width: `${(weight?.weight ?? 0) * 100}%` }}/></div></div>; })}</div><div className="formula-note"><b>EXPLAINABLE BY DESIGN</b><p>30% liquidity · 20% spread · 18% freshness · 14% activity · 12% agreement · 6% reliability</p></div>{breakStage > 0 && <div className="break-diagnostics"><b>GHOST // {breakStage < 2 ? "SIMULATING" : breakStage < 4 ? "ANALYZING" : "DOWN-WEIGHTED"}</b>{[tr(locale, "Checking liquidity", "Revisando liquidez"), tr(locale, "Checking spread", "Revisando spread"), tr(locale, "Checking freshness", "Revisando frescura"), tr(locale, "Comparing agreement", "Comparando acuerdo")].map((label, index) => <span key={label} className={breakStage > index ? "done" : ""}><i/>{label}</span>)}</div>}<div className="confidence-evidence">{confidence.evidence.slice(0, 5).map((item) => <p key={item.label} className={item.tone}><span>{item.tone === "positive" ? "✓" : "△"}</span>{item.label}</p>)}</div><button type="button" className={`break-button ${breakStage > 0 ? "armed" : ""}`} onClick={onBreak}><FlaskConical/><span><b>{breakStage > 0 ? tr(locale, "RESET EXPERIMENT", "REINICIAR EXPERIMENTO") : "BREAK THE CONSENSUS"}</b><small>{breakStage > 0 ? tr(locale, "Restore the observed source", "Restaurar la fuente observada") : tr(locale, "Watch Ghost reject a false outlier", "Mira cómo Ghost rechaza un outlier falso")}</small></span></button></aside>;
 }
 
-function VenueSheet({ venue, traditionalPrice, referenceAge, onOpenChange }: { venue:OnChainVenue|null; traditionalPrice:number; referenceAge:number; onOpenChange:(open:boolean)=>void }) {
-  if(!venue) return null; const difference=((venue.price-traditionalPrice)/traditionalPrice)*100;
-  const metrics=[["Referencia tradicional",money(traditionalPrice)],["Precio tokenizado",money(venue.price)],["Prima / descuento",`${difference>=0?"+":""}${difference.toFixed(2)}%`],["Liquidez disponible",formatCompactCurrency(venue.liquidity)],["Diferencial observado",`${venue.spreadBps} bps`],["Antigüedad de referencia",formatAge(referenceAge)]];
-  return <Sheet open={Boolean(venue)} onOpenChange={onOpenChange}><SheetContent className="w-full border-white/10 bg-[#0b0f0d] p-0 text-[#ecebe4] sm:max-w-[520px]" showCloseButton={false}><SheetHeader className="border-b border-white/[0.08] p-7 sm:p-9"><div className="mb-5 flex items-center justify-between"><DemoBadge/><button aria-label="Cerrar detalles del mercado" onClick={()=>onOpenChange(false)} className="rounded-full border border-white/10 p-2 text-[#74807a] hover:text-white"><X className="h-4 w-4"/></button></div><SheetTitle className="font-display text-3xl font-normal tracking-tight text-[#f0efe7]">¿POR QUÉ ESTE PRECIO ES DIFERENTE?</SheetTitle><SheetDescription className="mt-2 text-sm leading-relaxed text-[#6e7973]">Los mercados on-chain siguen operando mientras la referencia tradicional permanece congelada.</SheetDescription></SheetHeader><div className="overflow-y-auto p-7 sm:p-9"><div className="mb-9 flex items-end justify-between"><div><p className="instrument-label">{venue.name.toUpperCase()} · {venue.network}</p><p className="font-display mt-2 text-5xl text-[#ddf9ef]">{money(venue.price)}</p></div><span className="mb-1 font-mono text-sm text-[#8de0c6]">+{difference.toFixed(2)}%</span></div><dl className="divide-y divide-white/[0.07] border-y border-white/[0.07]">{metrics.map(([label,value])=><div key={label} className="flex items-center justify-between py-4 text-sm"><dt className="text-[#6f7a74]">{label}</dt><dd className="font-mono text-[#d8dad4]">{value}</dd></div>)}</dl><div className="mt-8 border-l border-[#9ee8d1]/40 pl-5"><p className="mb-2 text-xs tracking-[0.14em] text-[#98dcc7]">LECTURA EN CLARO</p><p className="text-sm leading-7 text-[#89958f]">Este mercado tokenizado valora {venue.name} ligeramente por encima de la última cotización tradicional. La diferencia puede reflejar información fuera de horario, liquidez del mercado y el costo de operar un activo tokenizado menos líquido. Es una prima observada, no un pronóstico.</p></div></div></SheetContent></Sheet>;
+function weightReason(locale: Locale, venue: VenueObservation, weight?: ConsensusWeight) {
+  if (!weight) return tr(locale, "Awaiting active observation", "Esperando observación activa");
+  const strongest = Object.entries(weight.factors).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([key]) => key);
+  const en: Record<string, string> = { liquidity: "deep liquidity", spread: "healthy spread", freshness: "fresh quote", activity: "strong activity", agreement: "price agreement", reliability: "source reliability" };
+  const es: Record<string, string> = { liquidity: "liquidez profunda", spread: "spread saludable", freshness: "cotización reciente", activity: "actividad fuerte", agreement: "acuerdo de precio", reliability: "fiabilidad de fuente" };
+  const labels = locale === "en" ? en : es;
+  return `${labels[strongest[0]]} · ${labels[strongest[1]]} · ${venue.quoteAgeSeconds}s`;
 }
 
-function DemoBadge(){return <span className="whitespace-nowrap border border-[#d58a6f]/25 bg-[#d58a6f]/[0.06] px-2.5 py-1.5 text-[9px] tracking-[0.18em] text-[#d88d73]">DATOS DEMO</span>}
-function GhostMark(){return <span className="relative block h-7 w-7" aria-hidden="true"><span className="absolute inset-x-1 top-0 h-5 rounded-t-full border border-[#b9e4d6] border-b-0"/><span className="absolute bottom-0 left-1 h-2 w-2 rotate-45 border-b border-l border-[#b9e4d6]"/><span className="absolute bottom-0 left-[11px] h-2 w-2 rotate-45 border-b border-l border-[#b9e4d6]"/><span className="absolute bottom-0 right-1 h-2 w-2 rotate-45 border-b border-l border-[#b9e4d6]"/></span>}
+function ImpactStrip({ locale, beforePrice, afterPrice, beforeConfidence, afterConfidence }: { locale: Locale; beforePrice: number; afterPrice: number; beforeConfidence: number; afterConfidence: number }) { return <div className="impact-strip"><span>{tr(locale, "OUTLIER DETECTED", "OUTLIER DETECTADO")}</span><p>Consensus <b>{money(beforePrice)}</b><i>→</i><strong>{money(afterPrice)}</strong></p><p>Confidence <b>{beforeConfidence}%</b><i>→</i><strong>{afterConfidence}%</strong></p><em>{tr(locale, "SIGNAL DOWN-WEIGHTED", "SEÑAL CON MENOR PESO")}</em></div>; }
+
+function MorningAfter({ locale, symbol, session, onReplay }: { locale: Locale; symbol: SymbolKey; session: GhostSession; onReplay: () => void }) {
+  const finalConsensus = calculateGhostConsensus(session.frames.at(-1)!.venues); const error = calculateReopenError(finalConsensus.price, session.nextOpenPrice);
+  return <section className="morning-shell"><div className="morning-atmosphere" aria-hidden="true"/><div className="morning-header"><span>THE MORNING AFTER · {symbol}</span><DemoBadge/></div><div className="morning-title"><p>9:30 AM · {tr(locale, "WALL STREET REOPENS", "WALL STREET REABRE")}</p><h2>{tr(locale, "WAS GHOST", "¿GHOST TENÍA")}<br/><em>{tr(locale, "RIGHT?", "RAZÓN?")}</em></h2></div><div className="morning-comparison"><div><span>09:29 · GHOST CONSENSUS</span><strong>{money(finalConsensus.price)}</strong><small>ON-CHAIN PRICE DISCOVERY</small></div><i>→</i><div><span>09:30 · {tr(locale, "TRADITIONAL OPEN", "APERTURA TRADICIONAL")}</span><strong>{money(session.nextOpenPrice)}</strong><small>{tr(locale, "NEXT OFFICIAL REFERENCE", "SIGUIENTE REFERENCIA OFICIAL")}</small></div><i>→</i><div className="difference"><span>{tr(locale, "OBSERVED DIFFERENCE", "DIFERENCIA OBSERVADA")}</span><strong>{error.toFixed(2)}%</strong><small>{tr(locale, "RETROSPECTIVE COMPARISON", "COMPARACIÓN RETROSPECTIVA")}</small></div></div><div className="night-result"><span>GHOST NIGHT RESULT · DEMO</span><p>✓ {tr(locale, "Consensus remained stable", "El consenso se mantuvo estable")}</p><p>✓ {tr(locale, "Outlier successfully detected", "Outlier detectado correctamente")}</p><p>△ {tr(locale, "Direction alone does not prove predictive power", "La dirección por sí sola no prueba poder predictivo")}</p></div><div className="night-history"><span>{tr(locale, "RECENT DEMO NIGHTS", "NOCHES DEMO RECIENTES")}</span><div>{session.historicalNights.map((night) => <div key={night.label}><b>{night.label}</b><span><i style={{ width: `${Math.min(100, night.differencePct / 1.5 * 100)}%` }}/></span><strong>{night.differencePct.toFixed(2)}%</strong><em>{night.sourceStatus}</em></div>)}</div></div><div className="morning-note"><p>“On-chain price discovery before the traditional market reopened.”</p><span>{tr(locale, "This comparison does not prove predictive power. Every figure in this beta is simulated.", "Esta comparación no prueba capacidad predictiva. Todas las cifras de esta beta son simuladas.")}</span></div><button className="replay-morning" onClick={onReplay}>{tr(locale, "REPLAY THE NIGHT", "REPRODUCIR LA NOCHE")}</button></section>;
+}
+
+function VenueSheet({ locale, venue, weight, referencePrice, onOpenChange }: { locale: Locale; venue: VenueObservation | null; weight?: ConsensusWeight; referencePrice: number; onOpenChange: (open: boolean) => void }) {
+  if (!venue) return null; const difference = (venue.price - referencePrice) / referencePrice * 100;
+  return <Sheet open={Boolean(venue)} onOpenChange={onOpenChange}><SheetContent className="w-full border-white/10 bg-[#090d0b] p-0 text-[#ecebe4] sm:max-w-[520px]" showCloseButton={false}><SheetHeader className="border-b border-white/[0.08] p-7 sm:p-9"><div className="mb-5 flex items-center justify-between"><DemoBadge/><button aria-label={tr(locale, "Close", "Cerrar")} onClick={() => onOpenChange(false)} className="rounded-full border border-white/10 p-2 text-[#74807a] hover:text-white"><X className="h-4 w-4"/></button></div><SheetTitle className="font-display text-3xl font-normal tracking-tight text-[#f0efe7]">{tr(locale, "WHY IS THIS PRICE DIFFERENT?", "¿POR QUÉ ESTE PRECIO ES DIFERENTE?")}</SheetTitle><SheetDescription className="mt-2 text-sm leading-relaxed text-[#7d8983]">{tr(locale, "Influence comes from observation quality, not the source name.", "La influencia surge de la calidad de la observación, no del nombre de la fuente.")}</SheetDescription></SheetHeader><div className="overflow-y-auto p-7 sm:p-9"><div className="venue-sheet-price"><span>{venue.name} · {venue.network}</span><strong>{money(venue.price)}</strong><em>{difference >= 0 ? "+" : ""}{difference.toFixed(2)}% VS CLOSE · {Math.round((weight?.weight ?? 0) * 100)}% WEIGHT</em></div><dl className="venue-metrics"><div><dt>{tr(locale, "Traditional reference", "Referencia tradicional")}</dt><dd>{money(referencePrice)}</dd></div><div><dt>{tr(locale, "Observed liquidity", "Liquidez observada")}</dt><dd>{compact(venue.liquidity.availableUsd)}</dd></div><div><dt>Spread</dt><dd>{venue.liquidity.spreadBps} bps</dd></div><div><dt>{tr(locale, "Quote freshness", "Frescura de cotización")}</dt><dd>{venue.quoteAgeSeconds}s</dd></div><div><dt>{tr(locale, "Observed activity", "Actividad observada")}</dt><dd>{compact(venue.liquidity.activityUsd)}</dd></div></dl><p className="venue-explanation">{tr(locale, "Ghost Engine normalizes these signals, penalizes divergence and converts the result into a relative weight. A valid price can still weigh less when liquidity drops, spreads widen or the observation becomes stale.", "Ghost Engine normaliza estas señales, penaliza la divergencia y convierte el resultado en un peso relativo. Un precio válido puede pesar menos si cae la liquidez, se amplía el spread o envejece la observación.")}</p></div></SheetContent></Sheet>;
+}
+
+function DemoBadge() { return <span className="demo-badge">DEMO DATA</span>; }
+function GhostMark() { return <span className="ghost-mark" aria-hidden="true"><i/><i/><i/></span>; }
