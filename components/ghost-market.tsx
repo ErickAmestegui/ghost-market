@@ -55,6 +55,7 @@ export default function GhostMarket() {
   const changeLocale = (next: Locale) => { setLocale(next); localStorage.setItem("ghost-locale", next); };
   const changeMode = (next: Mode) => { setMode(next); localStorage.setItem("ghost-mode", next); };
   useEffect(() => { document.documentElement.lang = locale; }, [locale]);
+  useEffect(() => { const betaTag = document.querySelector<HTMLElement>(".brand b"); if (betaTag) betaTag.textContent = "BETA 0.5"; }, []);
 
   const session = marketDataAdapter.getSession(symbol);
   const frame = useMemo(() => getReplayFrame(session, progress), [session, progress]);
