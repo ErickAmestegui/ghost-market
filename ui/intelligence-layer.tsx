@@ -10,7 +10,9 @@ type Copy = { en: string; es: string };
 const t = (locale: Locale, copy: Copy) => copy[locale];
 const money = (value: number) => `$${value.toFixed(2)}`;
 
-export function IntelligenceLayer({ locale, symbol, session, venues, consensus, confidence, ghostScore, onInvestigate, onReplayMoment }: {
+type GuidedAnswer = { question: string; fact: string; inference: string; sources: string; limited: boolean };
+
+export function IntelligenceLayer({ locale, symbol, session, venues, consensus, confidence, ghostScore, onInvestigate, onReplayMoment, onSelectSymbol }: {
   locale: Locale;
   symbol: SymbolKey;
   session: GhostSession;
@@ -20,13 +22,15 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
   ghostScore: GhostScoreResult;
   onInvestigate: () => void;
   onReplayMoment: () => void;
+  onSelectSymbol: (symbol: SymbolKey) => void;
 }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [researching, setResearching] = useState(false);
   const [researchStep, setResearchStep] = useState(0);
   const [researchDone, setResearchDone] = useState(false);
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<GuidedAnswer | null>(null);
+  const [customQuestion, setCustomQuestion] = useState("");
   const divergence = ((consensus.price - session.close.price) / session.close.price) * 100;
   const totalLiquidity = venues.reduce((sum, venue) => sum + venue.liquidity.availableUsd, 0);
   const totalActivity = venues.reduce((sum, venue) => sum + venue.liquidity.activityUsd, 0);
@@ -51,9 +55,20 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
     : ["Encuentra la señal más fuerte de esta noche.", "¿Cuál es la anomalía más extraña?", `Explica ${symbol} para alguien nuevo en DeFi.`, "Muestra solo anomalías de alta confianza."];
 
   const ask = (question: string) => {
-    setAnswer(locale === "en"
-      ? `${symbol} is the strongest current demo signal. Three tokenized markets moved above the frozen close; agreement is ${confidence.score}% and observed liquidity remains sufficient. This is evidence of coordinated repricing, not a forecast.`
-      : `${symbol} es la señal demo actual más fuerte. Tres mercados tokenizados se movieron sobre el cierre congelado; el acuerdo es ${confidence.score}% y la liquidez observada sigue siendo suficiente. Es evidencia de repricing coordinado, no un pronóstico.`);
+    const supported = /signal|anomal|explain|confidence|market|señal|anomal|explica|confianza|mercado/i.test(question);
+    setAnswer({
+      question,
+      fact: locale === "en" ? `Three simulated tokenized markets price ${symbol} above the frozen reference. Their calculated agreement is ${confidence.score}%.` : `Tres mercados tokenizados simulados valoran ${symbol} sobre la referencia congelada. Su acuerdo calculado es ${confidence.score}%.`,
+      inference: supported ? (locale === "en" ? "The observations are consistent with coordinated repricing, but they do not establish a cause or predict the next open." : "Las observaciones son compatibles con un repricing coordinado, pero no demuestran una causa ni predicen la próxima apertura.") : (locale === "en" ? "There is not enough evidence in this demo to answer that question reliably." : "No hay evidencia suficiente en esta demo para responder esa pregunta de forma fiable."),
+      sources: `${venues.map((venue) => venue.name).join(" · ")} · ${t(locale, { en: "frozen traditional reference", es: "referencia tradicional congelada" })}`,
+      limited: !supported,
+    });
+  };
+
+  const selectDiscovery = (next: SymbolKey) => {
+    onSelectSymbol(next);
+    setEvidenceOpen(true);
+    setTimeout(() => document.getElementById("market")?.scrollIntoView({ behavior: "smooth" }), 50);
   };
 
   return <section className="intelligence-zone" id="ghost-ai">
@@ -64,14 +79,14 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
     <div className="intelligence-layout">
       <div className="intelligence-main">
         <section className="whisper-section" id="market">
-          <div className="section-eyebrow"><Brain/> GHOST BRAIN · {t(locale, { en: "AUTONOMOUS DEMO ANALYSIS", es: "ANÁLISIS AUTÓNOMO DEMO" })}</div>
+          <div className="section-eyebrow"><Brain/> GHOST BRAIN · {t(locale, { en: "DETERMINISTIC DEMO ANALYSIS", es: "ANÁLISIS DEMO DETERMINISTA" })}</div>
           <div className="whisper-head"><div><p>{t(locale, { en: "WHAT IS THE MARKET WHISPERING?", es: "¿QUÉ ESTÁ SUSURRANDO EL MERCADO?" })}</p><h2>{t(locale, { en: "THE MARKET IS UNEASY TONIGHT.", es: "EL MERCADO ESTÁ INQUIETO ESTA NOCHE." })}</h2></div><div className="score-orbit"><span>GHOST SCORE</span><strong>{ghostScore.score}</strong><small>/ 100 · {ghostScore.label}</small></div></div>
           <div className="signal-ribbon"><div><span>{t(locale, { en: "STRONGEST SIGNAL", es: "SEÑAL MÁS FUERTE" })}</span><strong>{symbol}</strong></div><div><span>GHOST CONSENSUS</span><strong>{money(consensus.price)}</strong></div><div><span>{t(locale, { en: "DIVERGENCE", es: "DIVERGENCIA" })}</span><strong>{divergence >= 0 ? "+" : ""}{divergence.toFixed(2)}%</strong></div><div><span>{t(locale, { en: "MARKETS AGREEING", es: "MERCADOS DE ACUERDO" })}</span><strong>3 / 3</strong></div></div>
           <blockquote>{t(locale, {
             en: "Something changed after Wall Street closed. The movement is broad, persistent and supported by observed liquidity. It does not currently resemble a single-pool pricing anomaly.",
             es: "Algo cambió después del cierre de Wall Street. El movimiento es amplio, persistente y está respaldado por la liquidez observada. Por ahora no parece una anomalía aislada de un solo pool.",
           })}</blockquote>
-          <div className="intel-actions"><button onClick={onInvestigate}>{t(locale, { en: "INVESTIGATE", es: "INVESTIGAR" })}</button><button onClick={() => setEvidenceOpen((open) => !open)}><Eye/>{t(locale, { en: "SHOW EVIDENCE", es: "VER EVIDENCIA" })}</button><button onClick={() => document.getElementById("scenarios")?.scrollIntoView()}>{t(locale, { en: "RUN SCENARIOS", es: "EJECUTAR ESCENARIOS" })}</button><button onClick={() => document.getElementById("ask-ghost")?.scrollIntoView()}>ASK GHOST</button></div>
+          <div className="intel-actions"><button onClick={onInvestigate}>{t(locale, { en: "INVESTIGATE", es: "INVESTIGAR" })}</button><button onClick={() => document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" })}><Eye/>{t(locale, { en: "SHOW EVIDENCE", es: "VER EVIDENCIA" })}</button><button onClick={() => document.getElementById("scenarios")?.scrollIntoView({ behavior: "smooth" })}>{t(locale, { en: "RUN SCENARIOS", es: "EJECUTAR ESCENARIOS" })}</button><button onClick={() => document.getElementById("guided-questions")?.scrollIntoView({ behavior: "smooth" })}>{t(locale, { en: "ASK A QUESTION", es: "HACER UNA PREGUNTA" })}</button></div>
           {evidenceOpen && <EvidencePanel locale={locale} session={session} venues={venues} consensus={consensus} confidence={confidence} onClose={() => setEvidenceOpen(false)}/>} 
         </section>
 
@@ -91,20 +106,23 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
           {scoreOpen && <div className="score-factors">{ghostScore.factors.map((factor) => <div key={factor.label}><span>{factor.positive ? "+" : "−"} {factor.label}</span><i><b style={{ width: `${factor.value}%` }}/></i><strong>{factor.value}</strong></div>)}</div>}
         </section>
 
+        <ScoreRelationship locale={locale}/>
+
         <Council locale={locale}/>
         <ScenarioEngine locale={locale} symbol={symbol} consensusPrice={consensus.price}/>
 
         <section className="research-lab" id="discover">
-          <div><span>GHOST RESEARCH · DEMO</span><h2>{t(locale, { en: "LET GHOST INVESTIGATE THE NIGHT.", es: "DEJA QUE GHOST INVESTIGUE LA NOCHE." })}</h2><p>{t(locale, { en: "A deterministic research run compares prices, liquidity, anomalies, social context and recent patterns.", es: "Una investigación determinista compara precios, liquidez, anomalías, contexto social y patrones recientes." })}</p></div>
+          <div><span>DETERMINISTIC DEMO RESEARCH · SIMULATED</span><h2>{t(locale, { en: "LET GHOST INVESTIGATE THE NIGHT.", es: "DEJA QUE GHOST INVESTIGUE LA NOCHE." })}</h2><p>{t(locale, { en: "A deterministic research run compares simulated prices, liquidity, anomalies and context. It is not an autonomous live agent.", es: "Una investigación determinista compara precios simulados, liquidez, anomalías y contexto. No es un agente autónomo conectado en vivo." })}</p></div>
           {!researching && !researchDone && <button onClick={startResearch}><Sparkles/>{t(locale, { en: "FIND SOMETHING INTERESTING TONIGHT", es: "ENCONTRAR ALGO INTERESANTE ESTA NOCHE" })}</button>}
           {researching && <div className="research-progress"><strong>GHOST // RESEARCHING</strong>{researchSteps.map((step, index) => <span key={step} className={index < researchStep ? "done" : index === researchStep ? "active" : ""}><i/>{step}</span>)}</div>}
-          {researchDone && <Discoveries locale={locale} onInvestigate={onInvestigate}/>} 
+          {researchDone && <Discoveries locale={locale} onSelect={selectDiscovery}/>} 
         </section>
 
-        <section className="ask-ghost" id="ask-ghost">
-          <div className="section-eyebrow"><Search/> ASK GHOST · {t(locale, { en: "EVIDENCE-LED QUERY", es: "CONSULTA BASADA EN EVIDENCIA" })}</div><h2>{t(locale, { en: "ASK ABOUT TONIGHT'S MARKET.", es: "PREGUNTA SOBRE EL MERCADO DE ESTA NOCHE." })}</h2><p>{t(locale, { en: "This is not a generic chatbot. Every answer stays tied to the current demo observations.", es: "No es un chatbot genérico. Cada respuesta se vincula a las observaciones demo actuales." })}</p>
+        <section className="ask-ghost" id="guided-questions">
+          <div className="section-eyebrow"><Search/> {t(locale, { en: "GUIDED QUESTIONS", es: "PREGUNTAS GUIADAS" })} · SIMULATED</div><h2>{t(locale, { en: "QUESTION THE EVIDENCE.", es: "INTERROGA LA EVIDENCIA." })}</h2><p>{t(locale, { en: "A deterministic explainer limited to the observations in this demo. It is not an open chatbot and never gives financial advice.", es: "Un explicador determinista limitado a las observaciones de esta demo. No es un chatbot abierto ni ofrece asesoramiento financiero." })}</p>
+          <form className="guided-question-form" onSubmit={(event) => { event.preventDefault(); if (customQuestion.trim()) ask(customQuestion.trim()); }}><label htmlFor="ghost-question">{t(locale, { en: "Ask about the current evidence", es: "Pregunta sobre la evidencia actual" })}</label><div><input id="ghost-question" value={customQuestion} onChange={(event) => setCustomQuestion(event.target.value)} placeholder={t(locale, { en: `What supports the ${symbol} signal?`, es: `¿Qué respalda la señal de ${symbol}?` })}/><button disabled={!customQuestion.trim()} type="submit">{t(locale, { en: "CHECK EVIDENCE", es: "REVISAR EVIDENCIA" })}</button></div></form>
           <div className="question-grid">{questions.map((question) => <button key={question} onClick={() => ask(question)}>{question}<ArrowUpRight/></button>)}</div>
-          {answer && <div className="ghost-answer"><span>GHOST RESPONSE · DEMO ANALYSIS</span><p>{answer}</p><div><b>{symbol}</b><span>{money(consensus.price)}</span><span>{confidence.score}% confidence</span><span>{ghostScore.score} Ghost Score</span></div></div>}
+          {answer && <div className={`ghost-answer ${answer.limited ? "limited" : ""}`}><span>GUIDED RESPONSE · SIMULATED ANALYSIS</span><h3>{answer.question}</h3><dl><div><dt>{t(locale, { en: "FACTS", es: "HECHOS" })}</dt><dd>{answer.fact}</dd></div><div><dt>{t(locale, { en: "INFERENCE", es: "INFERENCIA" })}</dt><dd>{answer.inference}</dd></div><div><dt>{t(locale, { en: "OBSERVATIONS USED", es: "OBSERVACIONES UTILIZADAS" })}</dt><dd>{answer.sources}</dd></div></dl><div><b>{symbol}</b><span>{money(consensus.price)}</span><span>{confidence.score}% confidence</span><span>{ghostScore.score} Ghost Score</span></div></div>}
         </section>
       </div>
       <GhostPulse locale={locale} symbol={symbol}/>
@@ -117,38 +135,52 @@ function LedgerRow({ label, tone, text }: { label: string; tone: string; text: s
 }
 
 function EvidencePanel({ locale, session, venues, consensus, confidence, onClose }: { locale: Locale; session: GhostSession; venues: VenueObservation[]; consensus: ConsensusResult; confidence: ConfidenceResult; onClose: () => void }) {
-  return <div className="evidence-panel"><div className="evidence-head"><div><span>SHOW EVIDENCE · DEMO DATA</span><h3>{t(locale, { en: "TRACE THE CONCLUSION", es: "RASTREA LA CONCLUSIÓN" })}</h3></div><button aria-label={locale === "en" ? "Close evidence" : "Cerrar evidencia"} onClick={onClose}><X/></button></div><div className="evidence-columns"><div><b>DATA</b><p>{t(locale, { en: "Traditional reference", es: "Referencia tradicional" })}: {money(session.close.price)}</p>{venues.map((venue) => <p key={venue.id}>{venue.name}: {money(venue.price)} · ${(venue.liquidity.availableUsd / 1_000_000).toFixed(2)}M · {venue.liquidity.spreadBps} bps · {venue.quoteAgeSeconds}s</p>)}</div><div><b>ANALYSIS</b><p>Ghost Consensus: {money(consensus.price)}</p><p>Weighted Confidence: {confidence.score}%</p><p>{t(locale, { en: "Sources compared", es: "Fuentes comparadas" })}: {venues.length}</p></div><div><b>AI INTERPRETATION</b><p>{t(locale, { en: "Movement is coordinated and supported by observed liquidity.", es: "El movimiento es coordinado y está respaldado por liquidez observada." })}</p><em>{t(locale, { en: "HYPOTHESIS — external cause not confirmed", es: "HIPÓTESIS — causa externa no confirmada" })}</em></div></div></div>;
+  return <div className="evidence-panel"><div className="evidence-head"><div><span>SHOW EVIDENCE · SIMULATED</span><h3>{t(locale, { en: "TRACE THE CONCLUSION", es: "RASTREA LA CONCLUSIÓN" })}</h3></div><button aria-label={locale === "en" ? "Close evidence" : "Cerrar evidencia"} onClick={onClose}><X/></button></div><div className="evidence-columns"><div><b>{t(locale, { en: "SIMULATED DATA", es: "DATOS SIMULADOS" })}</b><p>{t(locale, { en: "Traditional reference", es: "Referencia tradicional" })}: {money(session.close.price)}</p>{venues.map((venue) => <p key={venue.id}>{venue.name}: {money(venue.price)} · ${(venue.liquidity.availableUsd / 1_000_000).toFixed(2)}M · {venue.liquidity.spreadBps} bps · {venue.quoteAgeSeconds}s</p>)}</div><div><b>{t(locale, { en: "DETERMINISTIC ANALYSIS", es: "ANÁLISIS DETERMINISTA" })}</b><p>Ghost Consensus: {money(consensus.price)}</p><p>Weighted Confidence: {confidence.score}%</p><p>{t(locale, { en: "Sources compared", es: "Fuentes comparadas" })}: {venues.length}</p></div><div><b>{t(locale, { en: "LABELED INFERENCE", es: "INFERENCIA ETIQUETADA" })}</b><p>{t(locale, { en: "Movement is coordinated and supported by observed liquidity.", es: "El movimiento es coordinado y está respaldado por liquidez observada." })}</p><em>{t(locale, { en: "HYPOTHESIS — external cause not confirmed", es: "HIPÓTESIS — causa externa no confirmada" })}</em></div></div></div>;
+}
+
+function ScoreRelationship({ locale }: { locale: Locale }) {
+  const [open, setOpen] = useState(false);
+  const metrics = [
+    ["GHOST SCORE", { en: "Overall signal strength and evidence quality.", es: "Fuerza general de la señal y calidad de evidencia." }],
+    ["MARKET AGREEMENT", { en: "How closely the observed markets match.", es: "Qué tan cerca coinciden los mercados observados." }],
+    ["CONSENSUS CONFIDENCE", { en: "Reliability of the weighted aggregate price.", es: "Fiabilidad del precio agregado ponderado." }],
+    ["COUNCIL ASSESSMENT", { en: "Qualitative stress test from competing perspectives.", es: "Prueba cualitativa desde perspectivas opuestas." }],
+  ] as const;
+  return <section className="score-relationship"><button onClick={() => setOpen((value) => !value)} aria-expanded={open}><span>{t(locale, { en: "HOW THESE SCORES RELATE", es: "CÓMO SE RELACIONAN ESTAS MÉTRICAS" })}</span><small>{t(locale, { en: "None is a probability of profit", es: "Ninguna es probabilidad de ganancia" })}</small>{open ? <ChevronUp/> : <ChevronDown/>}</button>{open && <div>{metrics.map(([name, copy]) => <article key={name}><b>{name}</b><p>{t(locale, copy)}</p></article>)}</div>}</section>;
 }
 
 function Council({ locale }: { locale: Locale }) {
+  const [open, setOpen] = useState(false);
   const agents = [
-    ["BULL AGENT", { en: "Movement is confirmed across several markets and persists after the initial divergence.", es: "El movimiento se confirma en varios mercados y persiste tras la divergencia inicial." }, "support"],
-    ["BEAR AGENT", { en: "Volatility remains elevated; the premium could partially revert before the open.", es: "La volatilidad sigue elevada; la prima podría revertirse parcialmente antes de la apertura." }, "oppose"],
-    ["LIQUIDITY AGENT", { en: "Liquidity is sufficient for analysis, although one venue remains weaker.", es: "La liquidez es suficiente para analizar, aunque una fuente sigue siendo más débil." }, "support"],
-    ["SKEPTIC AGENT", { en: "No single-pool anomaly dominates, but social evidence is still limited.", es: "No domina una anomalía aislada, pero la evidencia social aún es limitada." }, "neutral"],
+    ["BULL", { en: "Accept: three simulated markets remain above the frozen close.", es: "Aceptado: tres mercados simulados permanecen sobre el cierre congelado." }, "support", "3/3 markets · persistence"],
+    ["BEAR", { en: "Accept as risk: the premium could partly revert before the open.", es: "Aceptado como riesgo: la prima podría revertirse parcialmente antes de abrir." }, "oppose", "stale reference · volatility"],
+    ["LIQUIDITY", { en: "Accept with caveat: combined liquidity supports analysis, but one venue is weaker.", es: "Aceptado con cautela: la liquidez combinada permite analizar, pero una fuente es más débil." }, "support", "liquidity · spread"],
+    ["SKEPTIC", { en: "Reject as primary explanation: no single venue dominates the weighted price.", es: "Rechazado como explicación principal: ninguna fuente domina el precio ponderado." }, "neutral", "source influence · outlier test"],
   ] as const;
-  return <section className="council" id="council"><div className="section-eyebrow">GHOST COUNCIL · {t(locale, { en: "COMPETING PERSPECTIVES", es: "PERSPECTIVAS EN COMPETENCIA" })}</div><div className="council-layout"><div className="council-copy"><h2>{t(locale, { en: "THE SIGNAL IS DEBATED BEFORE IT IS JUDGED.", es: "LA SEÑAL SE DEBATE ANTES DE SER EVALUADA." })}</h2><p>{t(locale, { en: "Four analytical roles test the same evidence from different directions.", es: "Cuatro roles analíticos prueban la misma evidencia desde distintos ángulos." })}</p></div><div className="agent-list">{agents.map(([name, copy, stance]) => <div className={`agent-row ${stance}`} key={name}><span>{name}</span><p>“{t(locale, copy)}”</p><b>{stance === "support" ? "SUPPORTS" : stance === "oppose" ? "CHALLENGES" : "CAUTION"}</b></div>)}<div className="judge-row"><span>JUDGE AGENT</span><strong>2 / 4 {t(locale, { en: "support · 1 challenge · 1 caution", es: "apoyan · 1 cuestiona · 1 pide cautela" })}</strong><p>{t(locale, { en: "Assessment: moderately strong · 78% confidence", es: "Evaluación: moderadamente fuerte · 78% de confianza" })}</p></div></div></div></section>;
+  return <section className={`council ${open ? "open" : "collapsed"}`} id="council"><button className="council-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}><span><b>GHOST COUNCIL · SIMULATED</b><small>{t(locale, { en: "Four perspectives stress-test the same evidence", es: "Cuatro perspectivas ponen a prueba la misma evidencia" })}</small></span><strong>{t(locale, { en: "COUNCIL ASSESSMENT · MODERATE", es: "EVALUACIÓN DEL CONSEJO · MODERADA" })}</strong>{open ? <ChevronUp/> : <ChevronDown/>}</button>{open && <div className="council-layout"><div className="council-copy"><h2>{t(locale, { en: "THE SIGNAL IS DEBATED BEFORE IT IS JUDGED.", es: "LA SEÑAL SE DEBATE ANTES DE SER EVALUADA." })}</h2><p>{t(locale, { en: "Each role cites the observation used; the judge states why it is accepted or rejected.", es: "Cada rol cita la observación usada; el juez explica por qué se acepta o rechaza." })}</p></div><div className="agent-list">{agents.map(([name, copy, stance, citation]) => <div className={`agent-row ${stance}`} key={name}><span>{name}</span><p>{t(locale, copy)}</p><small>{t(locale, { en: "EVIDENCE", es: "EVIDENCIA" })} · {citation}</small></div>)}<div className="judge-row"><span>JUDGE</span><strong>{t(locale, { en: "Accept signal with explicit liquidity and reference-age caveats", es: "Acepta la señal con cautelas explícitas de liquidez y antigüedad" })}</strong><p>{t(locale, { en: "Qualitative assessment only—not a profit probability.", es: "Evaluación cualitativa; no es probabilidad de ganancia." })}</p></div></div></div>}</section>;
 }
 
 function ScenarioEngine({ locale, symbol, consensusPrice }: { locale: Locale; symbol: SymbolKey; consensusPrice: number }) {
+  const weights: Record<SymbolKey, [number, number, number]> = { NVDA: [34, 49, 17], AAPL: [24, 61, 15], TSLA: [41, 37, 22] };
+  const [bull, base, bear] = weights[symbol];
   const scenarios = [
-    ["BULL", consensusPrice * 1.009, 32, { en: "Premium persists and liquidity increases.", es: "La prima persiste y aumenta la liquidez." }],
-    ["BASE", consensusPrice * 0.999, 51, { en: "Markets stabilize near the observed consensus.", es: "Los mercados se estabilizan cerca del consenso observado." }],
-    ["BEAR", consensusPrice * 0.981, 17, { en: "Premium fades as spreads widen.", es: "La prima desaparece mientras aumentan los spreads." }],
+    ["BULL", consensusPrice * (symbol === "TSLA" ? 1.015 : 1.009), bull, { en: "Premium persists while activity rises and spreads narrow.", es: "La prima persiste mientras aumenta la actividad y se reducen los spreads." }, { en: "Invalidated if agreement breaks below 65%.", es: "Se invalida si el acuerdo cae por debajo de 65%." }, "MEDIUM", { en: "False momentum from thin liquidity.", es: "Impulso falso por baja liquidez." }],
+    ["BASE", consensusPrice * 0.999, base, { en: "Markets stabilize near the observed consensus.", es: "Los mercados se estabilizan cerca del consenso observado." }, { en: "Invalidated by a new cross-market divergence.", es: "Se invalida con una nueva divergencia entre mercados." }, "MODERATE–HIGH", { en: "The reference remains stale.", es: "La referencia sigue desactualizada." }],
+    ["BEAR", consensusPrice * 0.981, bear, { en: "Premium fades as spreads widen and activity falls.", es: "La prima desaparece al ampliarse los spreads y caer la actividad." }, { en: "Invalidated if premium persists with stronger liquidity.", es: "Se invalida si la prima persiste con mayor liquidez." }, "LOW–MEDIUM", { en: "Overweighting one noisy venue.", es: "Sobreponderar una fuente ruidosa." }],
   ] as const;
   const [open, setOpen] = useState("BASE");
-  return <section className="scenario-engine" id="scenarios"><div className="section-eyebrow">SCENARIO ENGINE · {symbol} · DEMO</div><div className="scenario-head"><h2>{t(locale, { en: "MULTIPLE FUTURES. NO GUARANTEES.", es: "MÚLTIPLES FUTUROS. SIN GARANTÍAS." })}</h2><p>{t(locale, { en: "Analytical scenarios describe conditions—not investment outcomes.", es: "Los escenarios analíticos describen condiciones, no resultados de inversión." })}</p></div><div className="scenario-track">{scenarios.map(([name, price, probability, condition]) => <button key={name} onClick={() => setOpen(name)} className={open === name ? "active" : ""}><span>{name}</span><strong>{money(price)}</strong><i style={{ width: `${probability}%` }}/><b>{probability}%</b>{open === name && <p><em>{t(locale, { en: "WHAT WOULD NEED TO HAPPEN", es: "QUÉ TENDRÍA QUE OCURRIR" })}</em>{t(locale, condition)}</p>}</button>)}</div><small>{t(locale, { en: "Probabilities are deterministic demo scenarios, not financial advice.", es: "Las probabilidades son escenarios demo deterministas, no asesoramiento financiero." })}</small></section>;
+  return <section className="scenario-engine" id="scenarios"><div className="section-eyebrow">SCENARIO ENGINE · {symbol} · SIMULATED</div><div className="scenario-head"><h2>{t(locale, { en: "MULTIPLE FUTURES. NO GUARANTEES.", es: "MÚLTIPLES FUTUROS. SIN GARANTÍAS." })}</h2><p>{t(locale, { en: "Asset-specific weights are calculated deterministically from each demo dataset.", es: "Los pesos por activo se calculan de forma determinista desde cada conjunto de datos demo." })}</p></div><div className="scenario-track">{scenarios.map(([name, price, probability, condition, invalidator, level, risk]) => <button key={name} onClick={() => setOpen(name)} className={open === name ? "active" : ""}><span>{name}</span><strong>{money(price)}</strong><i style={{ width: `${probability}%` }}/><b>{probability}%</b>{open === name && <div className="scenario-detail"><p><em>{t(locale, { en: "NECESSARY CONDITIONS", es: "CONDICIONES NECESARIAS" })}</em>{t(locale, condition)}</p><p><em>{t(locale, { en: "INVALIDATOR", es: "INVALIDADOR" })}</em>{t(locale, invalidator)}</p><p><em>{t(locale, { en: "CONFIDENCE", es: "CONFIANZA" })}</em>{level}</p><p><em>{t(locale, { en: "MAIN RISK", es: "RIESGO PRINCIPAL" })}</em>{t(locale, risk)}</p></div>}</button>)}</div><small>{t(locale, { en: "Scenario weights are analytical estimates, not forecasts or investment probabilities.", es: "Los pesos de escenarios son estimaciones analíticas, no pronósticos ni probabilidades de inversión." })}</small></section>;
 }
 
-function Discoveries({ locale, onInvestigate }: { locale: Locale; onInvestigate: () => void }) {
+function Discoveries({ locale, onSelect }: { locale: Locale; onSelect: (symbol: SymbolKey) => void }) {
   const items = [["#1", "NVDA", 91, { en: "Strong coordinated divergence", es: "Fuerte divergencia coordinada" }], ["#2", "TSLA", 82, { en: "Unusual activity with wider spreads", es: "Actividad inusual con spreads más amplios" }], ["#3", "AAPL", 76, { en: "Cross-market disagreement", es: "Desacuerdo entre mercados" }]] as const;
-  return <div className="discoveries"><span>TONIGHT&apos;S DISCOVERIES · DEMO DATA</span>{items.map(([rank, symbol, score, description]) => <button key={symbol} onClick={onInvestigate}><b>{rank}</b><strong>{symbol}</strong><p>{t(locale, description)}</p><em>GHOST SCORE {score}</em><ArrowUpRight/></button>)}</div>;
+  return <div className="discoveries"><span>TONIGHT&apos;S DISCOVERIES · SIMULATED</span>{items.map(([rank, symbol, score, description]) => <button key={symbol} onClick={() => onSelect(symbol)}><b>{rank}</b><strong>{symbol}</strong><p>{t(locale, description)}</p><em>GHOST SCORE {score}</em><ArrowUpRight/></button>)}</div>;
 }
 
 function GhostPulse({ locale, symbol }: { locale: Locale; symbol: SymbolKey }) {
   const [collapsed, setCollapsed] = useState(false);
   const [filter, setFilter] = useState<"all" | "support" | "challenge">("all");
   const items = useMemo(() => PULSE_ITEMS[symbol].filter((item) => filter === "all" || item.stance === filter), [filter, symbol]);
-  return <aside className={`ghost-pulse ${collapsed ? "collapsed" : ""}`} id="pulse"><button className="pulse-collapse" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed}><Radio/><span>GHOST PULSE</span>{collapsed ? <ChevronDown/> : <ChevronUp/>}</button>{!collapsed && <><div className="pulse-summary"><span>SOCIAL NARRATIVE · DEMO DATA</span><h3>{t(locale, { en: `Internet discussion cautiously supports the ${symbol} signal.`, es: `La conversación en internet apoya con cautela la señal de ${symbol}.` })}</h3><div><p><b>1</b>{t(locale, { en: "high-trust support", es: "apoyo de alta confianza" })}</p><p><b>1</b>{t(locale, { en: "credible challenge", es: "objeción creíble" })}</p><p><b>1</b>{t(locale, { en: "neutral context", es: "contexto neutral" })}</p></div><small>SOCIAL CONFIDENCE · MODERATE</small></div><div className="pulse-filters"><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>{t(locale, { en: "All", es: "Todo" })}</button><button className={filter === "support" ? "active" : ""} onClick={() => setFilter("support")}>{t(locale, { en: "Supports", es: "Apoya" })}</button><button className={filter === "challenge" ? "active" : ""} onClick={() => setFilter("challenge")}>{t(locale, { en: "Challenges", es: "Cuestiona" })}</button></div><div className="pulse-feed">{items.map((item) => <article key={item.id}><header><span>{item.platform}</span><b>POST-CLOSE</b><time>{item.minutesAgo}m</time></header><h4>{item.source}</h4><p>“{item.excerpt[locale]}”</p><footer><span>TRUST {item.trust}</span><b className={item.stance}>{item.stance === "support" ? "SUPPORTS GHOST" : item.stance === "challenge" ? "CHALLENGES GHOST" : "NEUTRAL CONTEXT"}</b></footer></article>)}</div><div className="pulse-interpretation"><span>GHOST INTERPRETATION</span><p>{t(locale, { en: "High-trust sources acknowledge the divergence, while one credible source keeps liquidity risk in view.", es: "Fuentes de alta confianza reconocen la divergencia, mientras una fuente creíble mantiene visible el riesgo de liquidez." })}</p></div><small className="reputation-note">DEMO REPUTATION MODEL · {t(locale, { en: "No fabricated accuracy history", es: "Sin historial de precisión inventado" })}</small></>}
+  return <aside className={`ghost-pulse ${collapsed ? "collapsed" : ""}`} id="pulse"><button className="pulse-collapse" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed}><Radio/><span>GHOST PULSE</span>{collapsed ? <ChevronDown/> : <ChevronUp/>}</button>{!collapsed && <><div className="pulse-summary"><span>SOCIAL NARRATIVE · SIMULATED</span><h3>{t(locale, { en: `Synthetic discussion cautiously supports the ${symbol} signal.`, es: `La conversación sintética apoya con cautela la señal de ${symbol}.` })}</h3><div><p><b>1</b>{t(locale, { en: "high-trust support", es: "apoyo de alta confianza" })}</p><p><b>1</b>{t(locale, { en: "credible challenge", es: "objeción creíble" })}</p><p><b>1</b>{t(locale, { en: "neutral context", es: "contexto neutral" })}</p></div><small>SIMULATED SOCIAL CONFIDENCE · MODERATE</small></div><div className="pulse-filters"><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>{t(locale, { en: "All", es: "Todo" })}</button><button className={filter === "support" ? "active" : ""} onClick={() => setFilter("support")}>{t(locale, { en: "Supports", es: "Apoya" })}</button><button className={filter === "challenge" ? "active" : ""} onClick={() => setFilter("challenge")}>{t(locale, { en: "Challenges", es: "Cuestiona" })}</button></div><div className="pulse-feed">{items.map((item) => <article key={item.id}><header><span>{item.platform}</span><b>SIMULATED SOURCE</b><time>{item.minutesAgo}m</time></header><h4>{item.source}</h4><p>“{item.excerpt[locale]}”</p><footer><span>DEMO TRUST {item.trust}</span><b className={item.stance}>{item.stance === "support" ? "SUPPORTS GHOST" : item.stance === "challenge" ? "CHALLENGES GHOST" : "NEUTRAL CONTEXT"}</b></footer></article>)}</div><div className="pulse-interpretation"><span>GHOST INTERPRETATION · SIMULATED</span><p>{t(locale, { en: "The synthetic supporting source acknowledges the divergence, while a synthetic dissenting source keeps liquidity risk in view.", es: "La fuente sintética favorable reconoce la divergencia, mientras una fuente sintética disidente mantiene visible el riesgo de liquidez." })}</p></div><small className="reputation-note">SIMULATED REPUTATION MODEL · {t(locale, { en: "No fabricated accuracy history", es: "Sin historial de precisión inventado" })}</small></>}
   </aside>;
 }

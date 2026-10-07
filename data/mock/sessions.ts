@@ -38,7 +38,7 @@ function buildVenues(config: SymbolConfig, frame: (typeof BLUEPRINT)[number]): V
   return VENUES.map((venue, index) => ({
     ...venue,
     network: "BNB CHAIN",
-    sourceStatus: "DEMO",
+    sourceStatus: "SIMULATED",
     price: roundPrice(config.close * (1 + (frame.offsets[index] * config.volatility) / 100)),
     quoteAgeSeconds: frame.ages[index],
     reliability: [0.96, 0.88, 0.82][index],
@@ -80,11 +80,11 @@ export const MOCK_SESSIONS = Object.fromEntries(
       symbol,
       company: config.company,
       dateLabel: "NOCHE SIMULADA · 04–05 OCT",
-      close: { symbol, price: config.close, capturedAt: "4:00 PM ET", status: "closed", sourceStatus: "DEMO" },
+      close: { symbol, price: config.close, capturedAt: "4:00 PM ET", status: "closed", sourceStatus: "SIMULATED" },
       nextOpenPrice: config.nextOpen,
       frames: makeFrames(config),
       events: makeEvents(symbol),
-      historicalNights: config.history.map((differencePct, index) => ({ label: `NIGHT ${index + 1}`, differencePct, sourceStatus: "DEMO" })),
+      historicalNights: config.history.map((differencePct, index) => ({ label: `NIGHT ${index + 1}`, differencePct, sourceStatus: "SIMULATED" })),
     };
     return [symbol, session];
   }),

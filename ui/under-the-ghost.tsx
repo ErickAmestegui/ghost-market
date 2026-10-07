@@ -3,18 +3,18 @@ import type { Locale } from "@/data/types";
 export function UnderTheGhost({ locale }: { locale: Locale }) {
   const stages = locale === "en" ? [
     ["01", "TRADITIONAL MARKET", "Closing reference freezes", "WAITING"],
-    ["02", "TOKENIZED REPRESENTATION", "The instrument remains observable", "CONNECTED"],
-    ["03", "BNB CHAIN", "Market state continues on-chain", "DEMO"],
-    ["04", "MARKET OBSERVATIONS", "Price, spread, freshness, activity", "LIVE"],
-    ["05", "GHOST ENGINE", "Consensus, confidence, event detection", "LIVE"],
-    ["06", "GHOST BRAIN", "Evidence, hypotheses, research and watch", "DEMO"],
+    ["02", "TOKENIZED REPRESENTATION", "The demo instrument remains observable", "SIMULATED"],
+    ["03", "BNB CHAIN", "Verified evidence is shown in the evidence module", "SEE EVIDENCE"],
+    ["04", "MARKET OBSERVATIONS", "Price, spread, freshness, activity", "SIMULATED"],
+    ["05", "GHOST ENGINE", "Consensus, confidence, event detection", "SIMULATED"],
+    ["06", "GHOST BRAIN", "Evidence, hypotheses, research and watch", "SIMULATED"],
   ] : [
     ["01", "MERCADO TRADICIONAL", "La referencia de cierre se congela", "EN ESPERA"],
-    ["02", "REPRESENTACIÓN TOKENIZADA", "El instrumento continúa observable", "CONECTADO"],
-    ["03", "BNB CHAIN", "El estado del mercado continúa on-chain", "DEMO"],
-    ["04", "OBSERVACIONES DE MERCADO", "Precio, spread, frescura y actividad", "ACTIVO"],
-    ["05", "GHOST ENGINE", "Consenso, confianza y detección de eventos", "ACTIVO"],
-    ["06", "GHOST BRAIN", "Evidencia, hipótesis, investigación y vigilancia", "DEMO"],
+    ["02", "REPRESENTACIÓN TOKENIZADA", "El instrumento demo continúa observable", "SIMULADO"],
+    ["03", "BNB CHAIN", "La evidencia verificable aparece en el módulo de evidencia", "VER EVIDENCIA"],
+    ["04", "OBSERVACIONES DE MERCADO", "Precio, spread, frescura y actividad", "SIMULADO"],
+    ["05", "GHOST ENGINE", "Consenso, confianza y detección de eventos", "SIMULADO"],
+    ["06", "GHOST BRAIN", "Evidencia, hipótesis, investigación y vigilancia", "SIMULADO"],
   ];
   return <section className="under-ghost" id="under-the-ghost">
     <div className="section-kicker">UNDER THE GHOST · TECHNICAL PATH</div>

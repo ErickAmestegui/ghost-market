@@ -2,7 +2,7 @@ import type { GhostSession, SymbolKey } from "@/data/types";
 
 export interface MarketDataAdapter {
   readonly id: string;
-  readonly mode: "LIVE" | "HISTORICAL" | "DEMO";
+  readonly mode: "LIVE" | "CACHED" | "SIMULATED";
   getSession(symbol: SymbolKey): GhostSession;
 }
 

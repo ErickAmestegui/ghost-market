@@ -1,6 +1,6 @@
 export type SymbolKey = "NVDA" | "AAPL" | "TSLA";
 export type Locale = "en" | "es";
-export type DataStatus = "LIVE" | "HISTORICAL" | "DEMO";
+export type DataStatus = "LIVE" | "CACHED" | "SIMULATED";
 
 export type ReferencePrice = {
   symbol: SymbolKey;
@@ -105,7 +105,7 @@ export type GhostSession = {
 
 export type PulseItem = {
   id: string;
-  platform: "X" | "REDDIT" | "OFFICIAL";
+  platform: "X" | "REDDIT" | "OFFICIAL" | "SYNTHETIC";
   source: string;
   excerpt: { en: string; es: string };
   stance: "support" | "challenge" | "context";
