@@ -23,6 +23,7 @@ function researchScore(symbol: SymbolKey) {
 }
 
 type GuidedAnswer = { question: string; fact: string; inference: string; sources: string; limited: boolean };
+type ResearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 
 export function IntelligenceLayer({ locale, symbol, session, venues, consensus, confidence, ghostScore, onInvestigate, onReplayMoment, onSelectSymbol }: {
   locale: Locale;
@@ -38,9 +39,8 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
 }) {
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
-  const [researching, setResearching] = useState(false);
+  const [researchStatus, setResearchStatus] = useState<ResearchStatus>("idle");
   const [researchStep, setResearchStep] = useState(0);
-  const [researchDone, setResearchDone] = useState(false);
   const [answer, setAnswer] = useState<GuidedAnswer | null>(null);
   const [customQuestion, setCustomQuestion] = useState("");
   const divergence = ((consensus.price - session.close.price) / session.close.price) * 100;
@@ -52,16 +52,19 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
     : ["Escaneando mercados", "Comparando precios", "Detectando anomalías", "Revisando liquidez", "Filtrando señales débiles", "Revisando contexto social", "Ordenando hallazgos", "Generando informe"];
 
   useEffect(() => {
-    if (!researching) return;
+    if (researchStatus !== "loading") return;
     if (researchStep >= researchSteps.length) {
-      const done = setTimeout(() => { setResearching(false); setResearchDone(true); }, 450);
+      const done = setTimeout(() => {
+        try { setResearchStatus(venues.length ? "success" : "empty"); }
+        catch { setResearchStatus("error"); }
+      }, 450);
       return () => clearTimeout(done);
     }
     const timer = setTimeout(() => setResearchStep((step) => step + 1), 420);
     return () => clearTimeout(timer);
-  }, [researching, researchStep, researchSteps.length]);
+  }, [researchStatus, researchStep, researchSteps.length, venues.length]);
 
-  const startResearch = () => { setResearchDone(false); setResearchStep(0); setResearching(true); };
+  const startResearch = () => { setResearchStep(0); setResearchStatus("loading"); };
   const questions = locale === "en"
     ? ["Find the strongest signal tonight.", "What is the strangest anomaly?", `Explain ${symbol} like I'm new to DeFi.`, "Show high-confidence anomalies only."]
     : ["Encuentra la señal más fuerte de esta noche.", "¿Cuál es la anomalía más extraña?", `Explica ${symbol} para alguien nuevo en DeFi.`, "Muestra solo anomalías de alta confianza."];
@@ -94,6 +97,7 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
         <section className="whisper-section" id="market">
           <div className="section-eyebrow"><Brain/> GHOST BRAIN · {t(locale, { en: "DETERMINISTIC DEMO ANALYSIS", es: "ANÁLISIS DEMO DETERMINISTA" })}</div>
           <div className="whisper-head"><div><p>{t(locale, { en: "WHAT IS THE MARKET WHISPERING?", es: "¿QUÉ ESTÁ SUSURRANDO EL MERCADO?" })}</p><h2>{t(locale, { en: "THE MARKET IS UNEASY TONIGHT.", es: "EL MERCADO ESTÁ INQUIETO ESTA NOCHE." })}</h2></div><div className="score-orbit"><span>GHOST SCORE</span><strong>{ghostScore.score}</strong><small>/ 100 · {ghostScore.label}</small></div></div>
+          <div className="simple-snapshot"><div><span>GHOST SCORE · SIMULATED</span><strong>{ghostScore.score} / 100</strong></div><div><span>GHOST CONSENSUS · SIMULATED</span><strong>{money(consensus.price)}</strong></div><div><span>{t(locale, { en: "CONFIDENCE · SIMULATED", es: "CONFIANZA · SIMULATED" })}</span><strong>{confidence.score}%</strong></div><div className="risk"><span>{t(locale, { en: "MAIN RISK", es: "RIESGO PRINCIPAL" })}</span><strong>{t(locale, { en: "Frozen traditional reference", es: "Referencia tradicional congelada" })}</strong></div></div>
           <div className="signal-ribbon"><div><span>{t(locale, { en: "STRONGEST SIGNAL", es: "SEÑAL MÁS FUERTE" })}</span><strong>{symbol}</strong></div><div><span>GHOST CONSENSUS</span><strong>{money(consensus.price)}</strong></div><div><span>{t(locale, { en: "DIVERGENCE", es: "DIVERGENCIA" })}</span><strong>{divergence >= 0 ? "+" : ""}{divergence.toFixed(2)}%</strong></div><div><span>{t(locale, { en: "MARKETS AGREEING", es: "MERCADOS DE ACUERDO" })}</span><strong>3 / 3</strong></div></div>
           <blockquote>{t(locale, {
             en: "Something changed after Wall Street closed. The movement is broad, persistent and supported by observed liquidity. It does not currently resemble a single-pool pricing anomaly.",
@@ -126,9 +130,11 @@ export function IntelligenceLayer({ locale, symbol, session, venues, consensus, 
 
         <section className="research-lab" id="discover">
           <div><span>DETERMINISTIC DEMO RESEARCH · SIMULATED</span><h2>{t(locale, { en: "LET GHOST INVESTIGATE THE NIGHT.", es: "DEJA QUE GHOST INVESTIGUE LA NOCHE." })}</h2><p>{t(locale, { en: "A deterministic research run compares simulated prices, liquidity, anomalies and context. It is not an autonomous live agent.", es: "Una investigación determinista compara precios simulados, liquidez, anomalías y contexto. No es un agente autónomo conectado en vivo." })}</p></div>
-          {!researching && !researchDone && <button onClick={startResearch}><Sparkles/>{t(locale, { en: "FIND SOMETHING INTERESTING TONIGHT", es: "ENCONTRAR ALGO INTERESANTE ESTA NOCHE" })}</button>}
-          {researching && <div className="research-progress"><strong>GHOST // RESEARCHING</strong>{researchSteps.map((step, index) => <span key={step} className={index < researchStep ? "done" : index === researchStep ? "active" : ""}><i/>{step}</span>)}</div>}
-          {researchDone && <Discoveries locale={locale} onSelect={selectDiscovery}/>} 
+          {researchStatus === "idle" && <button onClick={startResearch}><Sparkles/>{t(locale, { en: "FIND SOMETHING INTERESTING TONIGHT", es: "ENCONTRAR ALGO INTERESANTE ESTA NOCHE" })}</button>}
+          {researchStatus === "loading" && <div className="research-progress" role="status" aria-live="polite"><strong>{t(locale, { en: "GHOST // RESEARCHING", es: "GHOST // INVESTIGANDO" })}</strong>{researchSteps.map((step, index) => <span key={step} className={index < researchStep ? "done" : index === researchStep ? "active" : ""}><i/>{step}</span>)}</div>}
+          {researchStatus === "empty" && <ResearchState locale={locale} tone="empty" onRetry={startResearch}/>}
+          {researchStatus === "error" && <ResearchState locale={locale} tone="error" onRetry={startResearch}/>}
+          {researchStatus === "success" && <Discoveries locale={locale} onSelect={selectDiscovery}/>}
         </section>
 
         <section className="ask-ghost" id="guided-questions">
@@ -183,6 +189,11 @@ function ScenarioEngine({ locale, symbol, consensusPrice }: { locale: Locale; sy
   ] as const;
   const [open, setOpen] = useState("BASE");
   return <section className="scenario-engine" id="scenarios"><div className="section-eyebrow">SCENARIO ENGINE · {symbol} · SIMULATED</div><div className="scenario-head"><h2>{t(locale, { en: "MULTIPLE FUTURES. NO GUARANTEES.", es: "MÚLTIPLES FUTUROS. SIN GARANTÍAS." })}</h2><p>{t(locale, { en: "Asset-specific weights are calculated deterministically from each demo dataset.", es: "Los pesos por activo se calculan de forma determinista desde cada conjunto de datos demo." })}</p></div><div className="scenario-track">{scenarios.map(([name, price, probability, condition, invalidator, level, risk]) => <button key={name} onClick={() => setOpen(name)} className={open === name ? "active" : ""}><span>{name}</span><strong>{money(price)}</strong><i style={{ width: `${probability}%` }}/><b>{probability}%</b>{open === name && <div className="scenario-detail"><p><em>{t(locale, { en: "NECESSARY CONDITIONS", es: "CONDICIONES NECESARIAS" })}</em>{t(locale, condition)}</p><p><em>{t(locale, { en: "INVALIDATOR", es: "INVALIDADOR" })}</em>{t(locale, invalidator)}</p><p><em>{t(locale, { en: "CONFIDENCE", es: "CONFIANZA" })}</em>{level}</p><p><em>{t(locale, { en: "MAIN RISK", es: "RIESGO PRINCIPAL" })}</em>{t(locale, risk)}</p></div>}</button>)}</div><small>{t(locale, { en: "Scenario weights are analytical estimates, not forecasts or investment probabilities.", es: "Los pesos de escenarios son estimaciones analíticas, no pronósticos ni probabilidades de inversión." })}</small></section>;
+}
+
+function ResearchState({ locale, tone, onRetry }: { locale: Locale; tone: "empty" | "error"; onRetry: () => void }) {
+  const error = tone === "error";
+  return <div className={`research-state ${tone}`} role={error ? "alert" : "status"}><b>{t(locale, error ? { en: "RESEARCH COULD NOT COMPLETE", es: "LA INVESTIGACIÓN NO PUDO COMPLETARSE" } : { en: "NO QUALIFYING SIGNALS", es: "NO HAY SEÑALES QUE CALIFIQUEN" })}</b><p>{t(locale, error ? { en: "The deterministic analysis encountered an unavailable demo input. No result was invented.", es: "El análisis determinista encontró una entrada demo no disponible. No se inventó ningún resultado." } : { en: "No observation passed the current evidence threshold. Try again after selecting another asset.", es: "Ninguna observación superó el umbral actual de evidencia. Intenta de nuevo tras seleccionar otro activo." })}</p><button onClick={onRetry}>{t(locale, { en: "RETRY RESEARCH", es: "REINTENTAR INVESTIGACIÓN" })}</button></div>;
 }
 
 function Discoveries({ locale, onSelect }: { locale: Locale; onSelect: (symbol: SymbolKey) => void }) {

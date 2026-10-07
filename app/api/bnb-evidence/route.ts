@@ -31,6 +31,17 @@ function formatSupply(hex: string, decimals: number) {
   return `${new Intl.NumberFormat("en-US").format(whole)}${remainder ? `.${remainder}` : ""}`;
 }
 
+function decodeAbiString(hex: string) {
+  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (clean.length < 128) throw new Error("Contract symbol() returned invalid ABI data");
+  const offset = Number.parseInt(clean.slice(0, 64), 16) * 2;
+  const length = Number.parseInt(clean.slice(offset, offset + 64), 16);
+  const valueHex = clean.slice(offset + 64, offset + 64 + length * 2);
+  if (!Number.isFinite(length) || valueHex.length !== length * 2) throw new Error("Contract symbol() could not be decoded");
+  const bytes = Uint8Array.from(valueHex.match(/.{1,2}/g) ?? [], (value) => Number.parseInt(value, 16));
+  return new TextDecoder().decode(bytes).replace(/\0/g, "").trim();
+}
+
 export async function GET(request: NextRequest) {
   const requested = request.nextUrl.searchParams.get("symbol")?.toUpperCase();
   const symbol: SupportedSymbol = requested && requested in TOKENS ? requested as SupportedSymbol : "AAPL";
@@ -43,19 +54,22 @@ export async function GET(request: NextRequest) {
       rpc<string>("eth_getCode", [token.contract, "latest"]),
     ]);
     if (code === "0x") throw new Error(`${token.tokenSymbol} contract bytecode unavailable`);
-    const [block, decimalsHex, totalSupplyHex] = await Promise.all([
+    const [block, symbolHex, decimalsHex, totalSupplyHex] = await Promise.all([
       rpc<{ number: string; hash: string; timestamp: string }>("eth_getBlockByNumber", [blockHex, false]),
+      rpc<string>("eth_call", [{ to: token.contract, data: "0x95d89b41" }, blockHex]),
       rpc<string>("eth_call", [{ to: token.contract, data: "0x313ce567" }, blockHex]),
       rpc<string>("eth_call", [{ to: token.contract, data: "0x18160ddd" }, blockHex]),
     ]);
     const blockNumber = Number.parseInt(block.number, 16);
+    const onChainSymbol = decodeAbiString(symbolHex);
+    if (onChainSymbol !== token.tokenSymbol) throw new Error(`Contract symbol mismatch: expected ${token.tokenSymbol}, received ${onChainSymbol || "empty"}`);
     const decimals = Number.parseInt(decimalsHex, 16);
     const evidence: BnbEvidence = {
       status: "LIVE", integrationStatus: "verified", network: "BSC Mainnet",
       chainId: Number.parseInt(chainHex, 16), blockNumber, blockHash: block.hash,
       timestamp: new Date(Number.parseInt(block.timestamp, 16) * 1_000).toISOString(),
       sourceName: "BNB Chain Public JSON-RPC", sourceUrl: RPC_URL,
-      contractName: `${token.tokenSymbol} · xStocks`, contractAddress: token.contract,
+      contractName: `${onChainSymbol} · xStocks`, contractAddress: token.contract,
       valueLabel: "totalSupply() at observed block", value: `${formatSupply(totalSupplyHex, decimals)} ${token.tokenSymbol}`,
       explorerBlockUrl: `https://bscscan.com/block/${blockNumber}`,
       explorerContractUrl: `https://bscscan.com/token/${token.contract}`,
