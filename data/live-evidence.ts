@@ -1,4 +1,5 @@
 import type { SymbolKey } from "@/data/types";
+import type { NormalizedMarketStatus } from "@/lib/market-session";
 
 export type LiveEvidenceStatus = "LIVE" | "CACHED" | "UNAVAILABLE" | "REJECTED" | "ERROR";
 
@@ -25,9 +26,12 @@ export type LiveEvidence = {
   market: {
     status: LiveEvidenceStatus;
     currentPeriod: string | null;
+    normalizedStatus: NormalizedMarketStatus;
     openNow: boolean | null;
     nextChangeAt: string | null;
     tradingHoursMode: string | null;
+    timezone: string;
+    observedAt: string;
     source: "xStocks Public Assets API";
   };
   reference: {

@@ -45,9 +45,18 @@ A PancakeSwap V2 pool is accepted only when:
 
 Otherwise the observation is shown as `REJECTED` or `NO VERIFIED MARKET FOUND`. A rejected pool never feeds the LIVE AFTER-HOURS GAP.
 
+The gap additionally requires a normalized traditional session of `CLOSED` or `AFTER-HOURS`, an authenticated Binance quote observed by Ghost Market within 30 seconds, and an accepted DEX block timestamp no older than five minutes. During `OPEN`, the gap is deliberately paused. Generic provider strings such as `MARKET` are normalized before display.
+
+## Binance failure isolation
+
+`/api/binance-integration` reads `BINANCE_API_KEY` only on the server. It records a Ghost request ID, the status/latency of each successful upstream request and any provider request ID header returned. A Binance failure does not prevent xStocks, BNB RPC or deterministic-demo rendering.
+
+Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE` and `PROVIDER_ERROR`. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
+
 ## Security and privacy
 
 - `BINANCE_API_KEY` is read only inside the server route.
 - No wallet connection, signature or transaction is requested.
 - No API secret is serialized to the browser or committed to source.
 - External values are rendered as data, never executed as instructions.
+- Live BNB reads try three documented BNB Chain public RPC endpoints in order. Optional price/oracle metadata can degrade to `UNAVAILABLE` without erasing valid contract provenance.

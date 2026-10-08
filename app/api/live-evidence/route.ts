@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import type { LiveEvidence, LiveEvidenceStatus } from "@/data/live-evidence";
 import type { SymbolKey } from "@/data/types";
 import { evaluateDexQuality } from "@/lib/dex-quality";
+import { normalizeMarketStatus } from "@/lib/market-session";
 
 const XSTOCKS_API = "https://api.xstocks.fi/api/v2";
-const RPC_URL = "https://bsc-dataseed.bnbchain.org";
+const RPC_URLS = [
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-dataseed2.bnbchain.org",
+];
 const PANCAKE_V2_FACTORY = "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73";
 const USDT = "0x55d398326f99059ff775485246999027b3197955";
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -16,7 +21,7 @@ const SYMBOLS: Record<SymbolKey, { tokenSymbol: `${SymbolKey}x`; expectedContrac
 
 type AssetResponse = {
   name?: string; symbol?: string; isin?: string; underlyingSymbol?: string;
-  trading?: { currentPeriod?: string; openNow?: boolean; nextChangeAt?: string; tradingHoursMode?: string };
+  trading?: { currentPeriod?: string; openNow?: boolean; nextChangeAt?: string; tradingHoursMode?: string; exchange?: { timezone?: string } };
   deployments?: Array<{ address?: string; wrapperAddressV2?: string; network?: string }>;
 };
 type OracleResponse = { nodes?: Array<{ managedBy?: string; feedType?: string; metadata?: { feedId?: string; verifierContract?: string } }> };
@@ -27,20 +32,40 @@ function hexNumber(value: string) { return Number.parseInt(value, 16); }
 function units(value: bigint, decimals: number) { return Number(value) / 10 ** decimals; }
 
 async function json<T>(url: string): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
-  if (!response.ok) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
-  return response.json() as Promise<T>;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) throw new Error(`${new URL(url).hostname} returned ${response.status}`);
+      return response.json() as Promise<T>;
+    } catch (error) { lastError = error; }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${new URL(url).hostname} request failed`);
+}
+
+async function optionalJson<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(5_000) });
+    if (!response.ok) return fallback;
+    return response.json() as Promise<T>;
+  } catch { return fallback; }
 }
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {
-  const response = await fetch(RPC_URL, {
-    method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
-    body: JSON.stringify({ jsonrpc: "2.0", id: method, method, params }), signal: AbortSignal.timeout(8_000),
-  });
-  if (!response.ok) throw new Error(`BNB RPC returned ${response.status}`);
-  const payload = await response.json() as { result?: T; error?: { message?: string } };
-  if (payload.result === undefined || payload.error) throw new Error(payload.error?.message ?? `${method} returned no result`);
-  return payload.result;
+  let lastError: unknown;
+  for (const rpcUrl of RPC_URLS) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ jsonrpc: "2.0", id: method, method, params }), signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) throw new Error(`${new URL(rpcUrl).hostname} returned ${response.status}`);
+      const payload = await response.json() as { result?: T; error?: { message?: string } };
+      if (payload.result === undefined || payload.error) throw new Error(payload.error?.message ?? `${method} returned no result`);
+      return payload.result;
+    } catch (error) { lastError = error; }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${method} failed across BNB RPC endpoints`);
 }
 
 async function call(to: string, data: string, block = "latest") { return rpc<string>("eth_call", [{ to, data }, block]); }
@@ -62,7 +87,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const [asset, price, oracle, blockHex] = await Promise.all([
-      json<AssetResponse>(assetUrl), json<{ quote?: number }>(priceUrl), json<OracleResponse>(oracleUrl), rpc<string>("eth_blockNumber", []),
+      json<AssetResponse>(assetUrl),
+      optionalJson<{ quote?: number }>(priceUrl, { quote: undefined }),
+      optionalJson<OracleResponse>(oracleUrl, { nodes: [] }),
+      rpc<string>("eth_blockNumber", []),
     ]);
     const deployment = asset.deployments?.find((item) => item.network === "BinanceSmartChain");
     const contract = deployment?.address?.toLowerCase() ?? null;
@@ -123,7 +151,7 @@ export async function GET(request: NextRequest) {
       status: registryStatus, symbol, tokenSymbol: config.tokenSymbol, observedAt,
       latencyMs: Math.round(performance.now() - started), requestId,
       registry: { status: "LIVE", provider: "xStocks / Backed Assets", assetName: asset.name ?? null, isin: asset.isin ?? null, underlyingSymbol: asset.underlyingSymbol ?? null, contractAddress: contract, wrapperAddress: deployment?.wrapperAddressV2 ?? null, network: "BinanceSmartChain", apiUrl: assetUrl, docsUrl: "https://docs.xstocks.fi/developers", legalUrl: "https://assets.backed.fi/legal-documentation" },
-      market: { status: "LIVE", currentPeriod: asset.trading?.currentPeriod ?? null, openNow: asset.trading?.openNow ?? null, nextChangeAt: asset.trading?.nextChangeAt ?? null, tradingHoursMode: asset.trading?.tradingHoursMode ?? null, source: "xStocks Public Assets API" },
+      market: { status: "LIVE", currentPeriod: asset.trading?.currentPeriod ?? null, normalizedStatus: normalizeMarketStatus(asset.trading?.currentPeriod, asset.trading?.openNow), openNow: asset.trading?.openNow ?? null, nextChangeAt: asset.trading?.nextChangeAt ?? null, tradingHoursMode: asset.trading?.tradingHoursMode ?? null, timezone: asset.trading?.exchange?.timezone ?? "America/New_York", observedAt, source: "xStocks Public Assets API" },
       reference: { status: priceOk ? "CACHED" : "UNAVAILABLE", priceUsd: priceOk ? Number(price.quote) : null, timestamp: null, age: "PROVIDER_TIMESTAMP_NOT_SUPPLIED", source: "xStocks price-data (provider-cached)", url: priceUrl },
       oracle: { status: oracleNode ? "LIVE" : "UNAVAILABLE", provider: oracleNode?.managedBy ?? null, feedType: oracleNode?.feedType ?? null, feedId: oracleNode?.metadata?.feedId ?? null, verifierContract: oracleNode?.metadata?.verifierContract ?? null, url: oracleUrl },
       dex,

@@ -76,6 +76,18 @@ BINANCE_API_KEY=server_side_market_data_key
 
 The key is never returned to the browser. Missing credentials, invalid credentials, rate limits, timeout, unsupported asset, empty quote and upstream failures have explicit states.
 
+Copy `.env.example` to a local `.env` only for development, or add `BINANCE_API_KEY` through the deployment's server-secret interface. Never use `NEXT_PUBLIC_BINANCE_API_KEY`.
+
+| Safe state | Meaning |
+| --- | --- |
+| `MISSING_CREDENTIALS` | The server secret is absent; no upstream request is attempted |
+| `INVALID_CREDENTIALS` | Binance rejected the key |
+| `RATE_LIMITED` | Binance returned a rate-limit response |
+| `TIMEOUT` | The seven-second request budget expired |
+| `ASSET_NOT_FOUND` | The requested/returned asset is unsupported or inconsistent |
+| `EMPTY_RESPONSE` | A mandatory quote body was empty |
+| `PROVIDER_ERROR` | The payload was malformed, mismatched or the provider failed |
+
 ## Local verification
 
 Requires Node.js `>=22.13.0`.
@@ -83,6 +95,7 @@ Requires Node.js `>=22.13.0`.
 ```bash
 npm run install:ci
 npm test
+npm run lint
 npm run build
 npm run dev
 ```
@@ -101,13 +114,33 @@ Recommended functional checks:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contracts and provenance](docs/CONTRACTS.md)
 - [Developer Experience Report](docs/DEVELOPER_EXPERIENCE_REPORT.md)
+- [License](LICENSE)
+
+## Reproducible market audit
+
+Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx BSC native/wrapper deployments against PancakeSwap V2 USDT and USDC. The script does not lower the production gates or mutate product configuration. At BSC block `126,528,816`, no candidate passed: the only discovered SPYx/USDC pair had approximately $0.00247 liquidity and 8,094,882.87% estimated impact for $100; QQQx returned no checked pair.
+
+## Hackathon verification checklist
+
+- [x] LIVE EVIDENCE and DETERMINISTIC DEMO are visually and logically separate.
+- [x] AAPLx, NVDAx and TSLAx provenance is checked against the official xStocks registry.
+- [x] Contract bytecode, symbol and block evidence are read from BSC mainnet.
+- [x] Weak/absent PancakeSwap markets are rejected at fixed thresholds.
+- [x] Session status is normalized; the live gap is paused during `OPEN`.
+- [x] Wallet/agent/transaction features are explicitly `NOT IMPLEMENTED`.
+- [x] Binance credentials remain server-only and failures are isolated.
+- [ ] Authenticated Binance success — blocked until the owner configures `BINANCE_API_KEY`.
+- [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
+- [ ] Public repository URL — requires owner GitHub authorization/account access.
+- [ ] Demo video URL — requires an owner-approved recording/upload destination.
+- [ ] Anonymous public site access — requires explicit owner authorization to change access mode and independent-device verification.
 
 ## Current limitations
 
 - Production `BINANCE_API_KEY` is not configured, so Binance success responses cannot yet be demonstrated.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
-- No public GitHub repository or recorded video URL has been supplied. The site labels both as not published rather than inventing links.
+- Public repository, video and anonymous-site access remain external publication tasks; no URL or access claim is fabricated.
 
 ## Safety
 

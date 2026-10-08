@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { BnbEvidence } from "@/data/bnb-evidence";
 
-const RPC_URL = "https://bsc-dataseed.bnbchain.org";
+const RPC_URLS = [
+  "https://bsc-dataseed.bnbchain.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-dataseed2.bnbchain.org",
+];
+const RPC_URL = RPC_URLS[0];
 const TOKENS = {
   NVDA: { tokenSymbol: "NVDAx", contract: "0xc845b2894dBddd03858fd2D643B4eF725fE0849d" },
   AAPL: { tokenSymbol: "AAPLx", contract: "0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a" },
@@ -10,17 +15,23 @@ const TOKENS = {
 type SupportedSymbol = keyof typeof TOKENS;
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {
-  const response = await fetch(RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: method, method, params }),
-    signal: AbortSignal.timeout(7_000),
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error(`BNB RPC returned ${response.status}`);
-  const payload = await response.json() as { result?: T; error?: { message?: string } };
-  if (payload.error || payload.result === undefined) throw new Error(payload.error?.message ?? "BNB RPC returned no result");
-  return payload.result;
+  let lastError: unknown;
+  for (const rpcUrl of RPC_URLS) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: method, method, params }),
+        signal: AbortSignal.timeout(7_000),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`${new URL(rpcUrl).hostname} returned ${response.status}`);
+      const payload = await response.json() as { result?: T; error?: { message?: string } };
+      if (payload.error || payload.result === undefined) throw new Error(payload.error?.message ?? "BNB RPC returned no result");
+      return payload.result;
+    } catch (error) { lastError = error; }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${method} failed across BNB RPC endpoints`);
 }
 
 function formatSupply(hex: string, decimals: number) {
