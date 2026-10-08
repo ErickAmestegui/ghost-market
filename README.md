@@ -1,63 +1,84 @@
-# Ghost Market — BNB Hackathon Beta 0.5
+# Ghost Market — BNB Hackathon Beta 0.6
 
-Ghost Market explains what can happen to tokenized-stock markets while Wall Street is closed. It combines verifiable BNB Smart Chain contract evidence with a deterministic replay that demonstrates consensus, confidence, anomaly handling, research, scenarios and a next-morning comparison.
+Ghost Market answers one question: **when Wall Street is closed, what does an independently verifiable blockchain market say a tokenized stock is worth?**
 
-The product deliberately separates truth from theater: `LIVE` is fetched from a verifiable source during the request; `SIMULATED`/`DEMO` is fixture data; `UNAVAILABLE` means credentials or a production adapter are missing.
+It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
-## What is real today
+## Why BNB Chain
 
-| Capability | Status | Provenance |
+The selected xStocks exist as BEP-20 contracts on BNB Smart Chain, where contracts, pools, reserves and blocks can be inspected without trusting the interface. Ghost Market uses that transparency to separate four questions that dashboards often collapse into one:
+
+1. Does the contract exist?
+2. Does the official provider map this symbol to that contract?
+3. Is there a real on-chain market?
+4. Is that market liquid and fresh enough to use?
+
+## Product modes
+
+### LIVE EVIDENCE
+
+- Official xStocks Assets API for contract and issuer provenance.
+- xStocks trading-period metadata and provider-cached reference quote.
+- xStocks BSC oracle metadata.
+- BNB public JSON-RPC for bytecode, symbol, total supply and block proof.
+- PancakeSwap V2 factory/pair reads for real reserves, price, estimated liquidity and $100 price impact.
+- Binance Stocks Trading Market Data through a server-only API key.
+
+The primary LIVE AFTER-HOURS GAP remains blank unless the traditional market is outside regular hours, Binance returns a valid reference and an on-chain market passes liquidity/impact controls.
+
+### DETERMINISTIC DEMO
+
+Ghost Brain, Ghost Council, Ghost Score, Ghost Consensus, Market Constellation, Break the Consensus, scenarios, research, replay and The Morning After use versioned simulated fixtures. They demonstrate how the analysis behaves; they are not evidence of current or predictive market performance.
+
+## Status vocabulary
+
+| Status | Meaning |
+| --- | --- |
+| LIVE | Read during the request from a verifiable source |
+| CACHED | Real provider data without request-time freshness proof |
+| REJECTED | Real observation that failed market-quality controls |
+| UNAVAILABLE | Required source, credential, pool or value is missing |
+| SIMULATED | Versioned deterministic fixture |
+
+## Real integrations
+
+| Capability | Source | Current behavior |
 | --- | --- | --- |
-| Selected AAPLx, NVDAx or TSLAx contract | LIVE when RPC succeeds | BSC public JSON-RPC: bytecode, decimals, total supply and latest block |
-| Binance Stocks Trading asset and quote | LIVE only with `BINANCE_API_KEY` | Official Binance Developer API |
-| Three market venues, liquidity and activity | SIMULATED | Versioned replay fixtures |
-| Ghost Consensus, Confidence and Score | DETERMINISTIC | Pure calculations over the replay fixtures |
-| Break the Consensus stress test | DEMO | Controlled outlier injection and reweighting |
-| Ghost Council, Pulse, Research and scenarios | SIMULATED | Deterministic UI narratives; not autonomous agents |
-| DEX price, liquidity and execution route | UNAVAILABLE | No verified pool/oracle adapter configured |
-| Wallet Skill, ERC-8004 identity, persistent agent | NOT IMPLEMENTED | No claim of agentic execution |
+| Contract provenance | xStocks public Assets API | Verifies provider, ISIN and BSC deployment |
+| Contract state | BNB public JSON-RPC | Reads code, symbol, supply, block and timestamp |
+| Oracle provenance | xStocks public Oracles API | Displays Chainlink pull-feed metadata when returned |
+| Reference quote | xStocks `price-data` | Labeled CACHED because the payload has no source timestamp |
+| DEX market | PancakeSwap V2 factory/pair | Accepts only with ≥$1,000 liquidity and ≤2% $100 impact |
+| Traditional quote | Binance Stocks Trading API | UNAVAILABLE until `BINANCE_API_KEY` is configured server-side |
 
-## Architecture
-
-```mermaid
-flowchart LR
-  UI[EN/ES responsive interface] --> E[/api/bnb-evidence/]
-  UI --> B[/api/binance-integration/]
-  UI --> R[Replay adapter]
-  E --> RPC[BNB Chain public RPC]
-  E --> SC[xStocks contracts]
-  B --> API[Binance Stocks Trading API]
-  R --> F[Versioned simulated fixtures]
-  F --> G[Consensus + Confidence + Ghost Score]
-  G --> UI
-  RPC --> UI
-  API --> UI
-```
-
-The adapter boundary lets a future verified venue/oracle implementation replace replay fixtures without rewriting the interface or analytical engine.
-
-## Contracts verified
+## Contracts
 
 - AAPLx: `0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a`
-- NVDAx: `0xc845b2894dBddd03858fd2D643B4eF725fE0849d`
+- NVDAx: `0xc845b2894dbddd03858fd2d643b4ef725fe0849d`
 - TSLAx: `0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0`
-- BNB Smart Chain mainnet, chain ID `56`
+- Network: BNB Smart Chain mainnet, chain ID `56`
 
-Verification uses `eth_getCode`, `eth_call` for `decimals()` and `totalSupply()`, plus `eth_getBlockByNumber`. A failure becomes `ERROR`; it is never replaced with a fabricated value.
+Runtime verification does not trust this list alone; the official xStocks registry must return the same BSC address and on-chain `symbol()` must match.
 
-## Binance integration
+## Binance server configuration
 
-The server adapter calls `GET /sapi/v1/equity/market/tokenized-assets` and `GET /sapi/v1/equity/market/quote?symbol=<SYMBOL>`. Copy `.env.example` to `.env.local` and add a valid server-side API key:
+The integration uses the official documented `MARKET_DATA` endpoints:
+
+- `/sapi/v1/equity/market/tokenized-assets`
+- `/sapi/v1/equity/market/quote?symbol=<SYMBOL>`
+- `/sapi/v1/equity/market/exchangeInfo?symbol=<SYMBOL>`
+
+Set the API key only in the deployment environment:
 
 ```dotenv
-BINANCE_API_KEY=your_server_side_key
+BINANCE_API_KEY=server_side_market_data_key
 ```
 
-The key is never sent to the browser. Missing credentials, invalid credentials, timeout, rate limit, empty response, unsupported asset and upstream failure have explicit states.
+The key is never returned to the browser. Missing credentials, invalid credentials, rate limits, timeout, unsupported asset, empty quote and upstream failures have explicit states.
 
-## Run and verify
+## Local verification
 
-Node.js `>=22.13.0` is required.
+Requires Node.js `>=22.13.0`.
 
 ```bash
 npm run install:ci
@@ -66,38 +87,28 @@ npm run build
 npm run dev
 ```
 
-## Four-minute judge demo
+Recommended functional checks:
 
-1. **0:00–0:30 — Thesis.** Read the hero, point to the selected xStock/BSC proof and explain the status vocabulary.
-2. **0:30–1:15 — Evidence.** Open Integration Proof, follow BscScan contract/block links, and show Binance as LIVE only if the key is configured.
-3. **1:15–2:10 — Intelligence.** Open Ghost Brain and Ghost Score. Show deterministic consensus and the labeled unconfirmed hypothesis.
-4. **2:10–2:55 — Break the Consensus.** Inject the demo outlier and show the weaker source losing influence.
-5. **2:55–3:25 — Research.** Ask for the strangest anomaly; the answer identifies DEMO VENUE B and cites its spread.
-6. **3:25–4:00 — Morning After.** Compare overnight consensus with the simulated open, then finish on the system path and limits.
+1. Select AAPL, NVDA and TSLA in LIVE EVIDENCE.
+2. Confirm official registry, BscScan and block links change with the asset.
+3. Confirm weak/absent PancakeSwap markets are rejected, not scored as live prices.
+4. Confirm missing Binance credentials never become LIVE.
+5. Switch to DETERMINISTIC DEMO and test Simple/Pro, EN/ES, Research, scenarios, Break the Consensus, replay and The Morning After.
+6. Test 320, 375, 390, 768 px and desktop without horizontal scroll.
 
-## Hackathon readiness
+## Technical documentation
 
-- [x] Clear first-screen thesis and guided tour
-- [x] EN/ES, Simple/Pro and responsive navigation
-- [x] Verifiable BSC contract/block evidence
-- [x] Honest LIVE, SIMULATED and UNAVAILABLE provenance
-- [x] Deterministic outlier demo with cleanup
-- [x] Consistent Ghost Score calculation across assets
-- [x] Build and engine/error tests
-- [ ] Configure `BINANCE_API_KEY` in hosting for live Binance quote proof
-- [ ] Add a verified DEX/oracle adapter for price and liquidity
-- [ ] Add Wallet Skill / ERC-8004 proof if entering an agent track
-- [ ] Publish a public GitHub repository and attach the Developer Experience Report
+- [Architecture](docs/ARCHITECTURE.md)
+- [Contracts and provenance](docs/CONTRACTS.md)
+- [Developer Experience Report](docs/DEVELOPER_EXPERIENCE_REPORT.md)
 
-## Developer Experience Report template
+## Current limitations
 
-- **Integration attempted:** BNB Chain public RPC and Binance Stocks Trading Market Data
-- **What worked:** contract/block reads, server-only API boundary, explicit error taxonomy
-- **Friction:** endpoint/auth assumptions, credential provisioning, symbol mapping
-- **Errors observed:** include HTTP status, request ID and timestamp; never include the API key
-- **Suggested improvements:** minimal quote example, response schemas and sandbox behavior
-- **Reproduction:** Node version, commit SHA, symbol, endpoint and UTC timestamp
+- Production `BINANCE_API_KEY` is not configured, so Binance success responses cannot yet be demonstrated.
+- The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
+- No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
+- No public GitHub repository or recorded video URL has been supplied. The site labels both as not published rather than inventing links.
 
 ## Safety
 
-Ghost Market is analytical software, not financial advice. The replay, scores, council, social narrative, research and morning open are simulations and may be wrong. The beta cannot create or submit transactions.
+Ghost Market does not execute trades or predict future prices. Scenario weights are analytical demo estimates, not forecasts or investment probabilities. Historical simulated nights are not proof of accuracy.

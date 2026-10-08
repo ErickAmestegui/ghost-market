@@ -8,10 +8,12 @@ export type BinanceIntegration = {
   provider: "Binance Developer API";
   symbol: SymbolKey;
   endpoints: string[];
+  documentationUrl: string;
   observedAt: string;
   latencyMs: number | null;
   requestId: string | null;
   tokenizedAsset: null | { assetCode: string; assetName: string; underlyingEquitySymbol: string; multiplier: string; multiplierValid: boolean };
   quote: null | { bidPrice: string; askPrice: string; bidSize: number; askSize: number };
+  marketInfo: null | { symbol: string; tradability: string; tradabilityUpdateTime: number; overnightSupported: boolean; extendedSession: boolean };
   error: null | { kind: BinanceErrorKind; message: string };
 };
