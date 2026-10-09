@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Database, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { BnbEvidence } from "@/data/bnb-evidence";
 import type { BinanceIntegration } from "@/data/binance-integration";
@@ -8,6 +8,7 @@ import type { BinanceWeb3RwaIntegration } from "@/data/binance-web3-rwa";
 import type { LiveEvidence, LiveEvidenceStatus } from "@/data/live-evidence";
 import type { DataStatus, Locale, SymbolKey } from "@/data/types";
 import { canCalculateAfterHoursGap } from "@/lib/market-session";
+import { matchesRequestedSymbol, RequestGenerationGate } from "@/lib/integration-integrity";
 
 const tr = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
 const money = (value: number | null | undefined, digits = 2) => value == null ? "—" : `$${value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
@@ -17,31 +18,67 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
   const [binance, setBinance] = useState<BinanceIntegration | null>(null);
   const [rwa, setRwa] = useState<BinanceWeb3RwaIntegration | null>(null);
   const [live, setLive] = useState<LiveEvidence | null>(null);
+  const [loadedSymbol, setLoadedSymbol] = useState<SymbolKey | null>(null);
   const [loading, setLoading] = useState(true);
+  const requestGate = useRef(new RequestGenerationGate());
+  const activeController = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
+    const version = requestGate.current!.begin();
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
     setLoading(true);
+    setLoadedSymbol(null);
+    setEvidence(null);
+    setBinance(null);
+    setRwa(null);
+    setLive(null);
     const now = new Date().toISOString();
     const fallback: BnbEvidence = { status: "ERROR", integrationStatus: "unavailable", network: "BSC Mainnet", chainId: 56, blockNumber: null, blockHash: null, timestamp: null, sourceName: "BNB Chain Public JSON-RPC", sourceUrl: "https://bsc-dataseed.bnbchain.org", contractName: null, contractAddress: null, valueLabel: null, value: null, explorerBlockUrl: null, explorerContractUrl: null, observedAt: now, error: "Connection unavailable", provider: "xStocks", underlyingSymbol: symbol, tokenSymbol: `${symbol}x` as BnbEvidence["tokenSymbol"], decimals: null, codePresent: false };
     try {
       const [chainResponse, binanceResponse, liveResponse, rwaResponse] = await Promise.all([
-        fetch(`/api/bnb-evidence?symbol=${symbol}`, { cache: "no-store" }),
-        fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store" }),
-        fetch(`/api/live-evidence?symbol=${symbol}`, { cache: "no-store" }),
-        fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store" }),
+        fetch(`/api/bnb-evidence?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
+        fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
+        fetch(`/api/live-evidence?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
+        fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
       ]);
-      setEvidence(await chainResponse.json() as BnbEvidence);
-      setBinance(await binanceResponse.json() as BinanceIntegration);
-      setLive(await liveResponse.json() as LiveEvidence);
-      setRwa(await rwaResponse.json() as BinanceWeb3RwaIntegration);
-    } catch {
+      const [nextEvidence, nextBinance, nextLive, nextRwa] = await Promise.all([
+        chainResponse.json() as Promise<BnbEvidence>,
+        binanceResponse.json() as Promise<BinanceIntegration>,
+        liveResponse.json() as Promise<LiveEvidence>,
+        rwaResponse.json() as Promise<BinanceWeb3RwaIntegration>,
+      ]);
+      if (controller.signal.aborted || !requestGate.current!.isCurrent(version)) return;
+      if (![nextEvidence.underlyingSymbol, nextBinance.symbol, nextLive.symbol, nextRwa.symbol].every((actual) => matchesRequestedSymbol(symbol, actual))) {
+        throw new Error("Provider responses did not match the selected asset.");
+      }
+      setEvidence(nextEvidence);
+      setBinance(nextBinance);
+      setLive(nextLive);
+      setRwa(nextRwa);
+      setLoadedSymbol(symbol);
+    } catch (caught) {
+      if (controller.signal.aborted || !requestGate.current!.isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return;
       setEvidence(fallback);
       setLive(null);
       setBinance({ status: "ERROR", module: "Binance Stocks Trading Market Data", provider: "Binance Developer API", symbol, endpoints: ["/sapi/v1/equity/market/tokenized-assets", `/sapi/v1/equity/market/quote?symbol=${symbol}`, `/sapi/v1/equity/market/exchangeInfo?symbol=${symbol}`], documentationUrl: "https://developers.binance.com/en/docs/catalog/advanced-trading-stocks-trading/api/rest-api/market-data", observedAt: now, latencyMs: null, requestId: "local-fallback", providerRequestId: null, responseStatus: null, requests: [], quoteMaxAgeSeconds: null, tokenizedAsset: null, quote: null, marketInfo: null, error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
       setRwa({ status: "ERROR", module: "Binance Web3 RWA Data API", provider: "Binance Web3 API", symbol, documentationUrl: "https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data", authenticationUrl: "https://web3.binance.com/en/dev-docs/authentication", observedAt: now, latencyMs: null, requestId: "local-fallback", responseStatus: null, credentialState: "MISSING", requests: [], assets: [], error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
-    } finally { setLoading(false); }
+      setLoadedSymbol(symbol);
+    } finally {
+      if (requestGate.current!.isCurrent(version)) setLoading(false);
+    }
   }, [symbol]);
-  useEffect(() => { const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, [load]);
-  return { evidence, binance, rwa, live, loading, reload: load };
+  useEffect(() => {
+    const gate = requestGate.current;
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      activeController.current?.abort();
+      gate.invalidate();
+    };
+  }, [load]);
+  const current = loadedSymbol === symbol;
+  return { evidence: current ? evidence : null, binance: current ? binance : null, rwa: current ? rwa : null, live: current ? live : null, loading: loading || !current, reload: load };
 }
 
 export function DataBadge({ status }: { status: DataStatus | LiveEvidenceStatus | "LOADING" }) {
@@ -63,7 +100,7 @@ export function BnbHeroEvidence({ locale, evidence, live, loading, onOpen }: { l
 export function OnchainEvidence({ locale, evidence, binance, live, loading, reload }: { locale: Locale; evidence: BnbEvidence | null; binance: BinanceIntegration | null; live: LiveEvidence | null; loading: boolean; reload: () => void }) {
   const binanceMid = binance?.quote ? (Number(binance.quote.bidPrice) + Number(binance.quote.askPrice)) / 2 : null;
   const marketStatus = live?.market?.normalizedStatus ?? "UNKNOWN";
-  const marketClosed = canCalculateAfterHoursGap(marketStatus);
+  const marketClosed = canCalculateAfterHoursGap(marketStatus, live?.market?.openNow);
   const proofObservedAt = live?.observedAt ? new Date(live.observedAt).getTime() : Number.NaN;
   const dexFresh = Boolean(live?.dex?.blockTimestamp && proofObservedAt - new Date(live.dex.blockTimestamp).getTime() <= 5 * 60_000);
   const binanceFresh = Boolean(binance?.observedAt && Math.abs(proofObservedAt - new Date(binance.observedAt).getTime()) <= 30_000);
@@ -93,7 +130,7 @@ export function OnchainEvidence({ locale, evidence, binance, live, loading, relo
     <div className="proof-grid proof-grid-wide">
       <article className="proof-card"><header><div><span>OFFICIAL XSTOCKS REGISTRY</span><b>{registry?.assetName ?? live?.tokenSymbol ?? "Asset provenance"}</b></div><DataBadge status={loading ? "LOADING" : registry?.status ?? "UNAVAILABLE"}/></header><dl><EvidenceItem label={tr(locale, "PROVIDER", "PROVEEDOR")} value={registry?.provider ?? "xStocks / Backed Assets"}/><EvidenceItem label="ISIN" value={registry?.isin ?? "—"}/><EvidenceItem label={tr(locale, "OFFICIAL BSC CONTRACT", "CONTRATO BSC OFICIAL")} value={registry?.contractAddress ?? "UNAVAILABLE"} href={registry?.contractAddress ? `https://bscscan.com/token/${registry.contractAddress}` : null}/><EvidenceItem label={tr(locale, "REGISTRY RESPONSE", "RESPUESTA DEL REGISTRO")} value={registry?.apiUrl ?? "UNAVAILABLE"} href={registry?.apiUrl}/><EvidenceItem label={tr(locale, "ISSUER DOCUMENTATION", "DOCUMENTACIÓN DEL EMISOR")} value="Backed Assets legal documentation" href={registry?.legalUrl}/></dl></article>
       <article className="proof-card"><header><div><span>BNB CHAIN PUBLIC RPC</span><b>eth_getCode · symbol() · totalSupply()</b></div><DataBadge status={loading ? "LOADING" : chainStatus}/></header><dl><EvidenceItem label={tr(locale, "CONTRACT", "CONTRATO")} value={evidence?.contractAddress ?? registry?.contractAddress ?? "UNAVAILABLE"} href={evidence?.explorerContractUrl ?? (registry?.contractAddress ? `https://bscscan.com/token/${registry.contractAddress}` : null)}/><EvidenceItem label={tr(locale, "CHAIN / BLOCK", "CADENA / BLOQUE")} value={`${evidence?.chainId ?? 56} / ${chainBlock?.toLocaleString() ?? "—"}`} href={evidence?.explorerBlockUrl ?? (chainBlock ? `https://bscscan.com/block/${chainBlock}` : null)}/><EvidenceItem label="BLOCK HASH" value={shortHash}/><EvidenceItem label={evidence?.valueLabel ?? tr(locale, "ON-CHAIN VALUE", "VALOR ON-CHAIN")} value={evidence?.value ?? (liveChainVerified ? tr(locale, "Bytecode + symbol verified by live evidence route", "Bytecode + símbolo verificados por la ruta de evidencia live") : "UNAVAILABLE")}/><EvidenceItem label={tr(locale, "TIMESTAMP", "MARCA DE TIEMPO")} value={chainTimestamp ? new Date(chainTimestamp).toLocaleString(locale === "en" ? "en-US" : "es-BO") : "—"}/></dl></article>
-      <article className="proof-card"><header><div><span>BINANCE DEVELOPER API</span><b>Stocks Trading Market Data</b></div><DataBadge status={loading ? "LOADING" : binance?.status ?? "UNAVAILABLE"}/></header><dl><EvidenceItem label={tr(locale, "ENDPOINTS USED", "ENDPOINTS USADOS")} value={binance?.requests.length ? binance.requests.map((item) => item.endpoint.split("/").at(-1)).join(" · ") : "tokenized-assets · quote · exchangeInfo"} href={binance?.documentationUrl}/><EvidenceItem label={tr(locale, "REQUESTED ASSET", "ACTIVO SOLICITADO")} value={binance?.symbol ?? "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "RETURNED IDENTIFIER", "IDENTIFICADOR DEVUELTO")} value={binance?.tokenizedAsset ? `${binance.tokenizedAsset.assetCode} · ${binance.tokenizedAsset.assetName}` : "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "REFERENCE QUOTE", "COTIZACIÓN DE REFERENCIA")} value={binanceMid == null ? "UNAVAILABLE" : money(binanceMid)}/><EvidenceItem label={tr(locale, "TRADABILITY", "OPERABILIDAD")} value={binance?.marketInfo?.tradability ?? "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "MARKET STATUS", "ESTADO DEL MERCADO")} value={marketStatus}/><EvidenceItem label="GHOST REQUEST ID" value={binance?.requestId ?? "—"}/><EvidenceItem label="PROVIDER REQUEST ID" value={binance?.providerRequestId ?? tr(locale, "Not supplied", "No proporcionado")}/><EvidenceItem label="HTTP STATUS" value={binance?.responseStatus?.toString() ?? "—"}/><EvidenceItem label={tr(locale, "LATENCY", "LATENCIA")} value={binance?.latencyMs == null ? "—" : `${binance.latencyMs} ms`}/><EvidenceItem label={tr(locale, "REQUEST TIMESTAMP", "TIMESTAMP DE SOLICITUD")} value={binance?.observedAt ? new Date(binance.observedAt).toLocaleString(locale === "en" ? "en-US" : "es-BO") : "—"}/><EvidenceItem label={tr(locale, "DOCUMENTED QUOTE AGE", "EDAD DOCUMENTADA DE QUOTE")} value={binance?.quoteMaxAgeSeconds == null ? "—" : `≤ ${binance.quoteMaxAgeSeconds}s`}/></dl>{binance?.error && <p className="proof-error"><b>{binance.error.kind}</b> · {binance.error.message}</p>}</article>
+      <article className="proof-card"><header><div><span>BINANCE DEVELOPER API</span><b>Stocks Trading Market Data</b></div><DataBadge status={loading ? "LOADING" : binance?.status ?? "UNAVAILABLE"}/></header><dl><EvidenceItem label={tr(locale, "ENDPOINTS USED", "ENDPOINTS USADOS")} value={binance?.requests.length ? binance.requests.map((item) => item.endpoint.split("/").at(-1)).join(" · ") : "tokenized-assets · quote · exchangeInfo"} href={binance?.documentationUrl}/><EvidenceItem label={tr(locale, "REQUESTED ASSET", "ACTIVO SOLICITADO")} value={binance?.symbol ?? "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "RETURNED IDENTIFIER", "IDENTIFICADOR DEVUELTO")} value={binance?.tokenizedAsset ? `${binance.tokenizedAsset.assetCode} · ${binance.tokenizedAsset.assetName}` : "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "REFERENCE QUOTE", "COTIZACIÓN DE REFERENCIA")} value={binanceMid == null ? "UNAVAILABLE" : money(binanceMid)}/><EvidenceItem label={tr(locale, "TRADABILITY", "OPERABILIDAD")} value={binance?.marketInfo?.tradability ?? "UNAVAILABLE"}/><EvidenceItem label={tr(locale, "MARKET STATUS", "ESTADO DEL MERCADO")} value={marketStatus}/><EvidenceItem label="GHOST REQUEST ID" value={binance?.requestId ?? "—"}/><EvidenceItem label="PROVIDER REQUEST ID" value={binance?.providerRequestId ?? tr(locale, "Not supplied", "No proporcionado")}/><EvidenceItem label="HTTP STATUS" value={binance?.responseStatus?.toString() ?? "—"}/><EvidenceItem label={tr(locale, "LATENCY", "LATENCIA")} value={binance?.latencyMs == null ? "—" : `${binance.latencyMs} ms`}/><EvidenceItem label={tr(locale, "GHOST RECEIPT TIME", "HORA DE RECEPCIÓN DE GHOST")} value={binance?.observedAt ? new Date(binance.observedAt).toLocaleString(locale === "en" ? "en-US" : "es-BO") : "—"}/><EvidenceItem label={tr(locale, "PROVIDER SOURCE TIME", "HORA DE ORIGEN DEL PROVEEDOR")} value={tr(locale, "Not supplied · freshness CACHED", "No proporcionada · frescura CACHED")}/></dl>{binance?.error && <p className="proof-error"><b>{binance.error.kind}</b> · {binance.error.message}</p>}</article>
     </div>
 
     <div className="dex-proof"><div><span>PANCAKESWAP V2 · VERIFIED POOL CHECK</span><h3>{dex?.status === "LIVE" ? tr(locale, "MARKET ACCEPTED", "MERCADO ACEPTADO") : dex?.status === "REJECTED" ? tr(locale, "WEAK SIGNAL REJECTED", "SEÑAL DÉBIL RECHAZADA") : tr(locale, "NO VERIFIED MARKET FOUND", "NO SE ENCONTRÓ UN MERCADO VERIFICADO")}</h3><p>{dex?.rejectionReason ?? (dex?.status === "LIVE" ? tr(locale, "Pool passed the minimum liquidity and price-impact controls.", "El pool superó los controles mínimos de liquidez e impacto de precio.") : tr(locale, "Checking official deployments and verified BNB markets. No price is promoted before validation.", "Comprobando despliegues oficiales y mercados BNB verificados. Ningún precio se publica antes de validarlo."))}</p></div><dl><EvidenceItem label={tr(locale, "PAIR", "PAR")} value={dex?.pairAddress ?? "UNAVAILABLE"} href={dex?.explorerUrl}/><EvidenceItem label={tr(locale, "OBSERVED SPOT", "SPOT OBSERVADO")} value={money(dex?.spotPriceUsd)}/><EvidenceItem label={tr(locale, "POOL LIQUIDITY", "LIQUIDEZ DEL POOL")} value={money(dex?.liquidityUsd)}/><EvidenceItem label={tr(locale, "PRICE IMPACT · $100", "IMPACTO DE PRECIO · $100")} value={dex?.priceImpact100UsdPct == null ? "—" : `${dex.priceImpact100UsdPct.toFixed(2)}%`}/><EvidenceItem label={tr(locale, "POOL FEE / SPREAD", "COMISIÓN / SPREAD")} value={`${dex?.poolFeeBps ?? 25} bps / ${tr(locale, "spread unavailable", "spread no disponible")}`}/><EvidenceItem label={tr(locale, "BLOCK", "BLOQUE")} value={dex?.blockNumber?.toLocaleString() ?? "—"} href={dex?.blockNumber ? `https://bscscan.com/block/${dex.blockNumber}` : null}/></dl></div>

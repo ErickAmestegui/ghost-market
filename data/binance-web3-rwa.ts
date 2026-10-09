@@ -6,6 +6,7 @@ export type BinanceWeb3RwaErrorKind =
   | "INVALID_SIGNATURE"
   | "TIMESTAMP_REJECTED"
   | "INSUFFICIENT_PERMISSION"
+  | "COMPLIANCE_RESTRICTED"
   | "RATE_LIMITED"
   | "ASSET_NOT_FOUND"
   | "TIMEOUT"
@@ -18,6 +19,13 @@ export type BinanceWeb3RequestProof = {
   providerMessage: string | null;
   latencyMs: number;
   observedAt: string;
+};
+
+export type BinanceWeb3RwaIssue = {
+  platformId: string;
+  stage: "underlying-profile" | "underlying-market";
+  kind: BinanceWeb3RwaErrorKind;
+  message: string;
 };
 
 export type BinanceWeb3RwaAsset = {
@@ -57,5 +65,6 @@ export type BinanceWeb3RwaIntegration = {
   credentialState: "CONFIGURED" | "MISSING";
   requests: BinanceWeb3RequestProof[];
   assets: BinanceWeb3RwaAsset[];
+  issues?: BinanceWeb3RwaIssue[];
   error: null | { kind: BinanceWeb3RwaErrorKind; message: string };
 };

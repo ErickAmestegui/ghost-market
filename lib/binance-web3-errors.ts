@@ -4,6 +4,7 @@ export function classifyWeb3RwaError(httpStatus: number, businessCode: number | 
   if (businessCode === 40101) return "INVALID_CREDENTIALS";
   if (businessCode === 40102) return "INVALID_SIGNATURE";
   if (businessCode === 40103) return "TIMESTAMP_REJECTED";
+  if (businessCode === 40304) return "COMPLIANCE_RESTRICTED";
   if (businessCode === 40104 || httpStatus === 403) return "INSUFFICIENT_PERMISSION";
   if (businessCode === 42900 || httpStatus === 429) return "RATE_LIMITED";
   if (httpStatus === 404) return "ASSET_NOT_FOUND";

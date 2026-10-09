@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const providerRequestId = requests.map((item) => item.providerRequestId).find(Boolean) ?? null;
     const validation = validateBinancePayload(symbol, assetsResult.data, quoteResult.data, exchangeResult.data);
     if (!validation.ok) return NextResponse.json({ ...base, status: "UNAVAILABLE", latencyMs, providerRequestId, responseStatus: 200, requests, tokenizedAsset: validation.asset, quote: null, marketInfo: validation.marketInfo, error: { kind: validation.kind, message: validation.message } } satisfies BinanceIntegration, { headers });
-    return NextResponse.json({ ...base, status: "LIVE", latencyMs, providerRequestId, responseStatus: 200, requests, tokenizedAsset: validation.asset, quote: validation.quote, marketInfo: validation.marketInfo, error: null } satisfies BinanceIntegration, { headers });
+    return NextResponse.json({ ...base, status: "CACHED", latencyMs, providerRequestId, responseStatus: 200, requests, tokenizedAsset: validation.asset, quote: validation.quote, marketInfo: validation.marketInfo, error: null } satisfies BinanceIntegration, { headers });
   } catch (caught) {
     const error = caught as Error & { status?: number; requestId?: string | null; proof?: BinanceIntegration["requests"][number] };
     const kind = error.name === "TimeoutError" ? "TIMEOUT" : classifyBinanceError(error.status ?? 500, error.message);

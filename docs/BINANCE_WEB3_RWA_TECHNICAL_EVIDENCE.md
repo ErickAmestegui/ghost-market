@@ -28,21 +28,18 @@ Required runtime secrets:
 
 They map to the provider headers `X-OC-APIKEY` and the HMAC input. Neither value is returned to the client or written to logs.
 
-## Test result before credentials
+## Verified production diagnostic
 
-The deployed Site environment was inspected without revealing secret values. It contained only the existing secret name `BINANCE_API_KEY`. The two Web3 secret names were absent.
+The deployed Site environment was inspected without revealing values. `BINANCE_API_KEY`, `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` are present and marked secret.
 
-Therefore no authenticated Binance Web3 provider request could be truthfully executed during this test. The Ghost Market endpoint returns `UNAVAILABLE / MISSING_CREDENTIALS`, an empty asset list, and performs no upstream request. This is an expected safety state, not a successful integration claim.
+At `2026-10-09T17:10:06Z`, a temporary authenticated production diagnostic executed exactly two signed, read-only requests. The route was removed afterward and verified inaccessible.
 
-Local route verification at 2026-10-09 07:39 (UTC-04:00):
+| Endpoint | HTTP | Business code | Provider message | UTC timestamp | Latency | Provider request ID |
+| --- | ---: | ---: | --- | --- | ---: | --- |
+| `GET /build/api/v1/dex/market/rwa/platforms` | 200 | `40304` | `Service not available due to compliance restriction` | `2026-10-09T17:10:06.697Z` | 869 ms | not supplied |
+| `GET /build/api/v1/dex/market/supported/chain` | 200 | `40304` | `Service not available due to compliance restriction` | `2026-10-09T17:10:06.688Z` | 857 ms | not supplied |
 
-| Symbol | Ghost HTTP | Status | Error | Assets | Upstream requests | Ghost request ID |
-| --- | ---: | --- | --- | ---: | ---: | --- |
-| AAPL | 200 | UNAVAILABLE | MISSING_CREDENTIALS | 0 | 0 | `ad02a3d6-d80d-47fe-b860-8c89fe8fd124` |
-| NVDA | 200 | UNAVAILABLE | MISSING_CREDENTIALS | 0 | 0 | `3912e1ef-1282-44b6-a7b1-d0fc94b67948` |
-| TSLA | 200 | UNAVAILABLE | MISSING_CREDENTIALS | 0 | 0 | `166ffcd6-46ac-440f-8a0e-df8370bb2b66` |
-
-Automated test suite: 19 passed, 0 failed. The build completed and exposed `/api/binance-web3-rwa` as a server route.
+Diagnostic request ID: `f27b5cb7-bdf7-4202-be73-d9ace4248be4`. No credential, signature or authentication header was recorded. Because the same code affected an RWA endpoint and a general Market endpoint, the observed restriction is broader than the RWA module alone. It does not prove that every Binance Web3 product is blocked.
 
 ## Status policy
 
@@ -54,6 +51,6 @@ Automated test suite: 19 passed, 0 failed. The build completed and exposed `/api
 
 The RWA price does not bypass Ghost Market's independent DEX liquidity and price-impact controls.
 
-## Pending verification
+## Pending provider resolution
 
-After both Web3 secrets are installed and a new Site version is deployed, execute the route for AAPL, NVDA and TSLA. Record each Ghost request ID, provider endpoint, HTTP status, Binance business code, latency, platform, contract, price timestamp and data status. Do not record headers, API Keys, Secret Keys or signatures.
+The current response requires an official Binance resolution or authorization. No VPN, proxy, alternate identity, region change or credential rotation is used to evade the restriction. AAPL, NVDA and TSLA cannot be marked LIVE until the provider returns successful RWA search/price payloads with valid platform, BSC contract and timestamps.

@@ -47,7 +47,7 @@ A PancakeSwap V2 pool is accepted only when:
 
 Otherwise the observation is shown as `REJECTED` or `NO VERIFIED MARKET FOUND`. A rejected pool never feeds the LIVE AFTER-HOURS GAP.
 
-The gap additionally requires a normalized traditional session of `CLOSED` or `AFTER-HOURS`, an authenticated Binance quote observed by Ghost Market within 30 seconds, and an accepted DEX block timestamp no older than five minutes. During `OPEN`, the gap is deliberately paused. Generic provider strings such as `MARKET` are normalized before display.
+The gap additionally requires a normalized traditional session of `CLOSED` or an actually active `AFTER-HOURS` session, a traditional quote with verifiable source freshness, and an accepted DEX block timestamp no older than five minutes. Binance Stocks transport can succeed while price freshness remains `CACHED` because its quote payload has no source timestamp; Ghost receipt time is never substituted for source time. During `OPEN`, the gap is deliberately paused. Generic provider strings such as `MARKET` are normalized before display.
 
 ## Binance failure isolation
 
@@ -55,7 +55,7 @@ The gap additionally requires a normalized traditional session of `CLOSED` or `A
 
 `/api/binance-web3-rwa` reads `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` only on the server. It signs the exact `/build/api/v1/...` wire path with HMAC-SHA256, searches the selected ticker, restricts candidates to BSC and the official `ondo`/`bstock` identifiers, then reads price, underlying profile and market state. Missing credentials return `UNAVAILABLE` without making an upstream request.
 
-Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE`, `PROVIDER_BLOCKED` and `PROVIDER_ERROR`. The adapter retries Binance's documented alternate API hosts only when the provider edge returns a WAF-style block. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
+Safe states include `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `COMPLIANCE_RESTRICTED`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE`, `PROVIDER_BLOCKED` and `PROVIDER_ERROR`. The Stocks adapter retries Binance's documented alternate API hosts only when the provider edge returns a WAF-style block. A validated Stocks response is `CACHED`, not `LIVE`, until the provider exposes a verifiable quote source timestamp. Binance Web3 business code `40304` is retained in request evidence and classified as `COMPLIANCE_RESTRICTED`.
 
 ## Demo-module isolation
 
