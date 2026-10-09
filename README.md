@@ -157,7 +157,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [x] Authenticated Binance Stocks transport success — HTTP 200 verified for AAPL, NVDA and TSLA; price freshness remains CACHED.
 - [ ] Usable Binance Web3 response — signed requests currently return business code `40304`.
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
-- [ ] Public repository URL — requires owner GitHub authorization/account access.
+- [ ] Public repository URL — the reviewed repository exists at `https://github.com/ErickAmestegui/ghost-market` and remains private until the owner explicitly approves the visibility change.
 - [x] Demo video URL — hosted with the public Site and verified at 36.92 seconds.
 - [x] Anonymous public site access — explicitly authorized by the owner and published through Sites.
 
@@ -167,7 +167,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - Binance Web3 currently returns HTTP 200 with business code `40304` (`Service not available due to compliance restriction`) for both RWA Platforms and Market Supported Chains. Ghost Market exposes this as an error and makes no LIVE claim.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
-- Public GitHub publication remains blocked because no authenticated GitHub session or repository destination is available. The Site source repository is private infrastructure and is not represented as a public repository.
+- The GitHub repository is configured and synchronized privately. Its history, current tree and compiled bundles must pass the final secret review before the owner explicitly authorizes public visibility.
 
 ## Safety
 

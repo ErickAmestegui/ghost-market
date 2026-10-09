@@ -13,6 +13,13 @@ import { matchesRequestedSymbol, RequestGenerationGate } from "@/lib/integration
 const tr = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
 const money = (value: number | null | undefined, digits = 2) => value == null ? "—" : `$${value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 
+async function fetchJsonWithOneRetry<T>(url: string, signal: AbortSignal) {
+  const first = await fetch(url, { cache: "no-store", signal });
+  if (first.status < 500) return first.json() as Promise<T>;
+  const retry = await fetch(url, { cache: "no-store", signal });
+  return retry.json() as Promise<T>;
+}
+
 export function useIntegrationEvidence(symbol: SymbolKey) {
   const [evidence, setEvidence] = useState<BnbEvidence | null>(null);
   const [binance, setBinance] = useState<BinanceIntegration | null>(null);
@@ -36,17 +43,11 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
     const now = new Date().toISOString();
     const fallback: BnbEvidence = { status: "ERROR", integrationStatus: "unavailable", network: "BSC Mainnet", chainId: 56, blockNumber: null, blockHash: null, timestamp: null, sourceName: "BNB Chain Public JSON-RPC", sourceUrl: "https://bsc-dataseed.bnbchain.org", contractName: null, contractAddress: null, valueLabel: null, value: null, explorerBlockUrl: null, explorerContractUrl: null, observedAt: now, error: "Connection unavailable", provider: "xStocks", underlyingSymbol: symbol, tokenSymbol: `${symbol}x` as BnbEvidence["tokenSymbol"], decimals: null, codePresent: false };
     try {
-      const [chainResponse, binanceResponse, liveResponse, rwaResponse] = await Promise.all([
-        fetch(`/api/bnb-evidence?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
-        fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
-        fetch(`/api/live-evidence?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
-        fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }),
-      ]);
       const [nextEvidence, nextBinance, nextLive, nextRwa] = await Promise.all([
-        chainResponse.json() as Promise<BnbEvidence>,
-        binanceResponse.json() as Promise<BinanceIntegration>,
-        liveResponse.json() as Promise<LiveEvidence>,
-        rwaResponse.json() as Promise<BinanceWeb3RwaIntegration>,
+        fetchJsonWithOneRetry<BnbEvidence>(`/api/bnb-evidence?symbol=${symbol}`, controller.signal),
+        fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }).then((response) => response.json() as Promise<BinanceIntegration>),
+        fetchJsonWithOneRetry<LiveEvidence>(`/api/live-evidence?symbol=${symbol}`, controller.signal),
+        fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }).then((response) => response.json() as Promise<BinanceWeb3RwaIntegration>),
       ]);
       if (controller.signal.aborted || !requestGate.current!.isCurrent(version)) return;
       if (![nextEvidence.underlyingSymbol, nextBinance.symbol, nextLive.symbol, nextRwa.symbol].every((actual) => matchesRequestedSymbol(symbol, actual))) {
