@@ -20,7 +20,7 @@ Completed integrations:
 
 Blocked items:
 
-- A successful Binance call is blocked because `BINANCE_API_KEY` is absent from the local and production server environments.
+- Binance authenticated market data is operational; no Binance credential blocker remains.
 - No audited BSC pool met both ≥$1,000 estimated liquidity and ≤2% estimated price impact for $100, so no live gap is calculated.
 - Public GitHub publication remains blocked because no authenticated GitHub session or public repository destination is available in this environment.
 
@@ -118,11 +118,11 @@ Server adapter endpoints and parameters:
 
 These direct probes intentionally sent no API key. The product route does not make an upstream call when `BINANCE_API_KEY` is absent; it returns `UNAVAILABLE / MISSING_CREDENTIALS` with a Ghost-generated request ID. No secret was logged or returned.
 
-Implemented and unit-tested classifications are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE` and `PROVIDER_ERROR`. Rate limiting, timeout and empty-body handling have deterministic tests/guards, but were not claimed as live upstream incidents. A successful authenticated payload, upstream request ID and authenticated latency remain unmeasured because no valid credential was available.
+Implemented and unit-tested classifications are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE`, `PROVIDER_BLOCKED` and `PROVIDER_ERROR`. Rate limiting, timeout and empty-body handling have deterministic tests/guards, but are not claimed as live upstream incidents.
 
 Validation refuses `LIVE` when the asset is absent, exchange metadata is absent, the quote symbol differs, bid/ask are invalid, `multiplierValid` is false, or the body is empty. The API documents that an unknown `exchangeInfo` symbol may return an empty array with HTTP 200, so HTTP success alone is not enough.
 
-Final pre-submission check on 2026-10-09: the local process reported no `BINANCE_API_KEY`, and the production Site runtime returned an empty environment-variable list. This is the only blocker to attempting authenticated success. The key must be added as a secret named exactly `BINANCE_API_KEY` in the Site runtime environment-variable settings, followed by a redeploy and verification of `/api/binance-integration?symbol=AAPL`. No key value was requested, printed, logged, written to source or transmitted to the browser during this round.
+Final production verification on 2026-10-09: `BINANCE_API_KEY` was stored as a hidden Sites secret and the public server route returned validated HTTP 200 / `LIVE` responses for AAPL, NVDA and TSLA. The verified Binance asset codes were `AAPLB`, `NVDAB` and `TSLAB`. The primary API host was blocked by the provider edge from the Worker, so the adapter retried Binance's documented `api-gcp` host and succeeded. No key value was printed, logged, written to source or transmitted to the browser. The temporary local secret file was deleted after verification.
 
 ## 5. xStocks Experience
 
@@ -206,7 +206,7 @@ The current Ghost Brain, Research, Council and scenarios are deterministic funct
 
 ## 10. API Pitfalls
 
-- Missing Binance credentials: no authenticated success can be verified; the safe output is `MISSING_CREDENTIALS`.
+- Missing Binance credentials still degrade safely to `MISSING_CREDENTIALS`; production currently has a valid hidden secret.
 - Real provider data without a timestamp: a current-looking number must remain `CACHED`.
 - Correct on-chain `symbol()`: still insufficient to prove issuer ownership without the registry mapping.
 - Existing pool with negligible liquidity: address existence must not promote its spot price.
@@ -244,12 +244,12 @@ The current Ghost Brain, Research, Council and scenarios are deterministic funct
 
 What works: official xStocks provenance, BSC contract/state proof, oracle metadata discovery, provider-cached quotes, PancakeSwap V2 reserve inspection, strict market-quality rejection, normalized session display, deterministic demo separation and safe Binance error handling.
 
-What does not work yet: authenticated Binance success, a quality-approved xStock pool, a calculable LIVE AFTER-HOURS GAP, wallet/trading, public agent identity and public GitHub publication.
+What does not work yet: a quality-approved xStock pool, a calculable LIVE AFTER-HOURS GAP, wallet/trading, public agent identity and public GitHub publication.
 
 What was demonstrated: real contracts can be verified while their apparent markets are honestly rejected. The product can distinguish contract existence, provider provenance, cached reference data and executable-market quality without substituting simulated values.
 
-What is not claimed: predictive power, profitable signals, executable liquidity, live Binance data, a connected wallet, autonomous trading or eligibility for agent/wallet prizes.
+What is not claimed: predictive power, profitable signals, executable liquidity, a connected wallet, autonomous trading or eligibility for agent/wallet prizes.
 
 The final product walkthrough is a 36.92-second, 1280×720 WebM hosted with the public Site at `https://ghost-market-beta.lorgiogc.chatgpt.site/ghost-market-demo.webm`. It records the live-evidence journey, weak-market decision, deterministic demo, Break the Consensus, Council and final resources. It contains no credentials or private data.
 
-With more time and owner-provided access, the next steps would be: configure and verify the server-only Binance key, add RPC health telemetry, integrate an approved indexer/router quote for broader venue discovery, publish the reviewed repository, and repeat anonymous-device QA after the final deployment.
+With more time, the next steps would be: add RPC health telemetry, integrate an approved indexer/router quote for broader venue discovery, publish the reviewed repository, and repeat anonymous-device QA after the final deployment.

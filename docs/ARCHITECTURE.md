@@ -4,7 +4,7 @@
 
 Ghost Market runs two deliberately separate paths.
 
-1. **LIVE EVIDENCE** reads official xStocks metadata, BNB Smart Chain state and PancakeSwap V2 pools at request time. Binance Stocks Trading data is requested only by the server and is unavailable until a server-side API key is configured.
+1. **LIVE EVIDENCE** reads official xStocks metadata, BNB Smart Chain state and PancakeSwap V2 pools at request time. Binance Stocks Trading data is requested only by the server using the production secret.
 2. **DETERMINISTIC DEMO** runs versioned fixtures through pure consensus, confidence, scoring, replay and scenario functions. It is never promoted to `LIVE`.
 
 ```text
@@ -51,7 +51,7 @@ The gap additionally requires a normalized traditional session of `CLOSED` or `A
 
 `/api/binance-integration` reads `BINANCE_API_KEY` only on the server. It records a Ghost request ID, the status/latency of each successful upstream request and any provider request ID header returned. A Binance failure does not prevent xStocks, BNB RPC or deterministic-demo rendering.
 
-Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE` and `PROVIDER_ERROR`. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
+Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE`, `PROVIDER_BLOCKED` and `PROVIDER_ERROR`. The adapter retries Binance's documented alternate API hosts only when the provider edge returns a WAF-style block. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
 
 ## Demo-module isolation
 

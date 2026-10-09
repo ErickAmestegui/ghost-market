@@ -67,7 +67,7 @@ Ghost Brain, Ghost Council, Ghost Score, Ghost Consensus, Market Constellation, 
 | Oracle provenance | xStocks public Oracles API | Displays Chainlink pull-feed metadata when returned |
 | Reference quote | xStocks `price-data` | Labeled CACHED because the payload has no source timestamp |
 | DEX market | PancakeSwap V2 factory/pair | Accepts only with ≥$1,000 liquidity and ≤2% $100 impact |
-| Traditional quote | Binance Stocks Trading API | UNAVAILABLE until `BINANCE_API_KEY` is configured server-side |
+| Traditional quote | Binance Stocks Trading API | LIVE in production for AAPL, NVDA and TSLA through a server-only secret |
 
 ## Contracts
 
@@ -100,6 +100,7 @@ Copy `.env.example` to a local `.env` only for development. For the public Site,
 | --- | --- |
 | `MISSING_CREDENTIALS` | The server secret is absent; no upstream request is attempted |
 | `INVALID_CREDENTIALS` | Binance rejected the key |
+| `PROVIDER_BLOCKED` | Binance's network edge blocked one or more server hosts; official alternates are retried |
 | `RATE_LIMITED` | Binance returned a rate-limit response |
 | `TIMEOUT` | The seven-second request budget expired |
 | `ASSET_NOT_FOUND` | The requested/returned asset is unsupported or inconsistent |
@@ -147,7 +148,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [x] Session status is normalized; the live gap is paused during `OPEN`.
 - [x] Wallet/agent/transaction features are explicitly `NOT IMPLEMENTED`.
 - [x] Binance credentials remain server-only and failures are isolated.
-- [ ] Authenticated Binance success — blocked until the owner configures `BINANCE_API_KEY`.
+- [x] Authenticated Binance success — verified in production for AAPL, NVDA and TSLA.
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
 - [ ] Public repository URL — requires owner GitHub authorization/account access.
 - [x] Demo video URL — hosted with the public Site and verified at 36.92 seconds.
@@ -155,7 +156,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 
 ## Current limitations
 
-- Production `BINANCE_API_KEY` is not configured, so Binance success responses cannot yet be demonstrated.
+- Production `BINANCE_API_KEY` is stored as a server-only Sites secret; its value is hidden and never returned to the browser.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
 - Public GitHub publication remains blocked because no authenticated GitHub session or repository destination is available. The Site source repository is private infrastructure and is not represented as a public repository.
