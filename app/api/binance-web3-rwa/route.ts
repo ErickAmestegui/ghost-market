@@ -52,7 +52,8 @@ async function web3Get<T>(path: string, query: Array<[string, string]>, apiKey: 
   return { data: payload.data, proof };
 }
 
-function freshness(updatedAt: number | undefined): DataStatus {
+function freshness(value: unknown, updatedAt: number | undefined): DataStatus {
+  if (numberOrNull(value) == null) return "UNAVAILABLE";
   if (!updatedAt) return "CACHED";
   return Date.now() - updatedAt <= 5 * 60_000 ? "LIVE" : "CACHED";
 }
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
       const price = prices.data?.find((item) => item.tokenContractAddress?.toLowerCase() === candidate.tokenContractAddress!.toLowerCase());
       return {
         platformId: candidate.platformId!, binanceChainId: "56", tokenContractAddress: candidate.tokenContractAddress!, tokenSymbol: candidate.tokenSymbol ?? symbol,
-        companyName: match?.companyName ?? symbol, assetType: candidate.assetType ?? 1, status: freshness(price?.tokenPriceUpdatedAt), tokenPrice: numberOrNull(price?.tokenPrice),
+        companyName: match?.companyName ?? symbol, assetType: candidate.assetType ?? 1, status: freshness(price?.tokenPrice, price?.tokenPriceUpdatedAt), tokenPrice: numberOrNull(price?.tokenPrice),
         referencePrice: numberOrNull(price?.referencePrice ?? market?.marketData?.referencePrice), priceUpdatedAt: dateOrNull(price?.tokenPriceUpdatedAt), tokenToShareRatio: profile?.tokenToShareRatio ?? null,
         marketStatus: market?.statusInfo?.marketStatus ?? null, openState: market?.statusInfo?.openState ?? null, reasonCode: market?.statusInfo?.reasonCode ?? null,
         reasonMessage: market?.statusInfo?.reasonMsg ?? null, nextOpenAt: dateOrNull(market?.statusInfo?.nextOpenTime), nextCloseAt: dateOrNull(market?.statusInfo?.nextCloseTime),
@@ -103,8 +104,9 @@ export async function GET(request: NextRequest) {
         protections: Object.entries(profile?.protections ?? {}).map(([name, item]) => ({ name, supported: item.supported === true, url: item.url ?? null })),
       };
     });
-    const status: DataStatus = assets.some((asset) => asset.status === "LIVE") ? "LIVE" : "CACHED";
-    return NextResponse.json({ ...base, status, latencyMs: Math.max(...proofs.map((item) => item.latencyMs)), responseStatus: 200, credentialState: "CONFIGURED", requests: proofs, assets, error: null } satisfies BinanceWeb3RwaIntegration, { headers });
+    const status: DataStatus = assets.some((asset) => asset.status === "LIVE") ? "LIVE" : assets.some((asset) => asset.status === "CACHED") ? "CACHED" : "UNAVAILABLE";
+    const incomplete = status === "UNAVAILABLE" ? { kind: "PROVIDER_ERROR" as const, message: "Binance Web3 returned matching RWA assets without a usable token price." } : null;
+    return NextResponse.json({ ...base, status, latencyMs: Math.max(...proofs.map((item) => item.latencyMs)), responseStatus: 200, credentialState: "CONFIGURED", requests: proofs, assets, error: incomplete } satisfies BinanceWeb3RwaIntegration, { headers });
   } catch (caught) {
     const error = caught as Error & { httpStatus?: number; businessCode?: number | null; proof?: BinanceWeb3RequestProof };
     if (error.proof) proofs.push(error.proof);
