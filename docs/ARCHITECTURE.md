@@ -53,6 +53,10 @@ The gap additionally requires a normalized traditional session of `CLOSED` or `A
 
 Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE` and `PROVIDER_ERROR`. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
 
+## Demo-module isolation
+
+Ghost Pulse reads a record keyed by `AAPL`, `NVDA` and `TSLA`. The selected value is normalized with `Array.isArray` before filtering, and malformed entries are discarded. Missing data produces an explicit simulated-data empty state. The demo laboratory is also wrapped in a local React Error Boundary, so a failure in Pulse, Research, Council or another demo panel cannot replace the complete application with an error page.
+
 ## Security and privacy
 
 - `BINANCE_API_KEY` is read only inside the server route.

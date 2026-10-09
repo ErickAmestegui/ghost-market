@@ -4,6 +4,9 @@ Ghost Market answers one question: **when Wall Street is closed, what does an in
 
 It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
+- [Public deployment](https://ghost-market-beta.lorgiogc.chatgpt.site/)
+- [36-second product walkthrough](https://ghost-market-beta.lorgiogc.chatgpt.site/ghost-market-demo.webm)
+
 ## Guided experience
 
 Beta 0.6 is organized as a calm, mobile-first learning journey instead of a dense terminal:
@@ -91,7 +94,7 @@ BINANCE_API_KEY=server_side_market_data_key
 
 The key is never returned to the browser. Missing credentials, invalid credentials, rate limits, timeout, unsupported asset, empty quote and upstream failures have explicit states.
 
-Copy `.env.example` to a local `.env` only for development, or add `BINANCE_API_KEY` through the deployment's server-secret interface. Never use `NEXT_PUBLIC_BINANCE_API_KEY`.
+Copy `.env.example` to a local `.env` only for development. For the public Site, add a secret named exactly `BINANCE_API_KEY` in the Site runtime environment-variable settings, redeploy, then verify `/api/binance-integration?symbol=AAPL`. Never use `NEXT_PUBLIC_BINANCE_API_KEY`.
 
 | Safe state | Meaning |
 | --- | --- |
@@ -147,7 +150,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [ ] Authenticated Binance success — blocked until the owner configures `BINANCE_API_KEY`.
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
 - [ ] Public repository URL — requires owner GitHub authorization/account access.
-- [ ] Demo video URL — requires an owner-approved recording/upload destination.
+- [x] Demo video URL — hosted with the public Site and verified at 36.92 seconds.
 - [x] Anonymous public site access — explicitly authorized by the owner and published through Sites.
 
 ## Current limitations
@@ -155,7 +158,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - Production `BINANCE_API_KEY` is not configured, so Binance success responses cannot yet be demonstrated.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
-- Public repository and demo video remain external publication tasks; no URL or access claim is fabricated.
+- Public GitHub publication remains blocked because no authenticated GitHub session or repository destination is available. The Site source repository is private infrastructure and is not represented as a public repository.
 
 ## Safety
 

@@ -22,7 +22,7 @@ Blocked items:
 
 - A successful Binance call is blocked because `BINANCE_API_KEY` is absent from the local and production server environments.
 - No audited BSC pool met both ≥$1,000 estimated liquidity and ≤2% estimated price impact for $100, so no live gap is calculated.
-- Public GitHub repository and demo video publication require external accounts/URLs not available in this environment.
+- Public GitHub publication remains blocked because no authenticated GitHub session or public repository destination is available in this environment.
 
 The wall-clock interval for this integration and verification round was approximately 6 hours 38 minutes. It includes implementation, repeated network probes, documentation work, build/test cycles and waiting; it is not represented as uninterrupted coding time.
 
@@ -121,6 +121,8 @@ These direct probes intentionally sent no API key. The product route does not ma
 Implemented and unit-tested classifications are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE` and `PROVIDER_ERROR`. Rate limiting, timeout and empty-body handling have deterministic tests/guards, but were not claimed as live upstream incidents. A successful authenticated payload, upstream request ID and authenticated latency remain unmeasured because no valid credential was available.
 
 Validation refuses `LIVE` when the asset is absent, exchange metadata is absent, the quote symbol differs, bid/ask are invalid, `multiplierValid` is false, or the body is empty. The API documents that an unknown `exchangeInfo` symbol may return an empty array with HTTP 200, so HTTP success alone is not enough.
+
+Final pre-submission check on 2026-10-09: the local process reported no `BINANCE_API_KEY`, and the production Site runtime returned an empty environment-variable list. This is the only blocker to attempting authenticated success. The key must be added as a secret named exactly `BINANCE_API_KEY` in the Site runtime environment-variable settings, followed by a redeploy and verification of `/api/binance-integration?symbol=AAPL`. No key value was requested, printed, logged, written to source or transmitted to the browser during this round.
 
 ## 5. xStocks Experience
 
@@ -242,10 +244,12 @@ The current Ghost Brain, Research, Council and scenarios are deterministic funct
 
 What works: official xStocks provenance, BSC contract/state proof, oracle metadata discovery, provider-cached quotes, PancakeSwap V2 reserve inspection, strict market-quality rejection, normalized session display, deterministic demo separation and safe Binance error handling.
 
-What does not work yet: authenticated Binance success, a quality-approved xStock pool, a calculable LIVE AFTER-HOURS GAP, wallet/trading, public agent identity, public GitHub publication and video publication.
+What does not work yet: authenticated Binance success, a quality-approved xStock pool, a calculable LIVE AFTER-HOURS GAP, wallet/trading, public agent identity and public GitHub publication.
 
 What was demonstrated: real contracts can be verified while their apparent markets are honestly rejected. The product can distinguish contract existence, provider provenance, cached reference data and executable-market quality without substituting simulated values.
 
 What is not claimed: predictive power, profitable signals, executable liquidity, live Binance data, a connected wallet, autonomous trading or eligibility for agent/wallet prizes.
 
-With more time and owner-provided access, the next steps would be: configure and verify the server-only Binance key, add RPC health telemetry, integrate an approved indexer/router quote for broader venue discovery, publish the reviewed repository, record the four-minute demo, and re-run public/incognito/device QA after public-site authorization.
+The final product walkthrough is a 36.92-second, 1280×720 WebM hosted with the public Site at `https://ghost-market-beta.lorgiogc.chatgpt.site/ghost-market-demo.webm`. It records the live-evidence journey, weak-market decision, deterministic demo, Break the Consensus, Council and final resources. It contains no credentials or private data.
+
+With more time and owner-provided access, the next steps would be: configure and verify the server-only Binance key, add RPC health telemetry, integrate an approved indexer/router quote for broader venue discovery, publish the reviewed repository, and repeat anonymous-device QA after the final deployment.
