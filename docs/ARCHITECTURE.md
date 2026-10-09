@@ -4,7 +4,7 @@
 
 Ghost Market runs two deliberately separate paths.
 
-1. **LIVE EVIDENCE** reads official xStocks metadata, BNB Smart Chain state and PancakeSwap V2 pools at request time. Binance Stocks Trading data is requested only by the server using the production secret.
+1. **LIVE EVIDENCE** reads official xStocks metadata, BNB Smart Chain state and PancakeSwap V2 pools at request time. Binance Stocks Trading and Binance Web3 RWA data are requested only by server routes using separate production credentials.
 2. **DETERMINISTIC DEMO** runs versioned fixtures through pure consensus, confidence, scoring, replay and scenario functions. It is never promoted to `LIVE`.
 
 ```text
@@ -18,6 +18,8 @@ Browser
   │    └─ BNB public JSON-RPC (independent contract proof)
   ├─ /api/binance-integration
   │    └─ Binance Stocks Trading Market Data (server-only API key)
+  ├─ /api/binance-web3-rwa
+  │    └─ Binance Web3 RWA Data (server-only HMAC-signed API key + secret)
   └─ deterministic client engine
        ├─ consensus
        ├─ confidence
@@ -51,6 +53,8 @@ The gap additionally requires a normalized traditional session of `CLOSED` or `A
 
 `/api/binance-integration` reads `BINANCE_API_KEY` only on the server. It records a Ghost request ID, the status/latency of each successful upstream request and any provider request ID header returned. A Binance failure does not prevent xStocks, BNB RPC or deterministic-demo rendering.
 
+`/api/binance-web3-rwa` reads `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` only on the server. It signs the exact `/build/api/v1/...` wire path with HMAC-SHA256, searches the selected ticker, restricts candidates to BSC and the official `ondo`/`bstock` identifiers, then reads price, underlying profile and market state. Missing credentials return `UNAVAILABLE` without making an upstream request.
+
 Safe states are `MISSING_CREDENTIALS`, `INVALID_CREDENTIALS`, `RATE_LIMITED`, `TIMEOUT`, `ASSET_NOT_FOUND`, `EMPTY_RESPONSE`, `PROVIDER_BLOCKED` and `PROVIDER_ERROR`. The adapter retries Binance's documented alternate API hosts only when the provider edge returns a WAF-style block. A response becomes `LIVE` only after the same ticker is present in tokenized assets, quote and exchange metadata and all mandatory numeric fields validate.
 
 ## Demo-module isolation
@@ -60,6 +64,7 @@ Ghost Pulse reads a record keyed by `AAPL`, `NVDA` and `TSLA`. The selected valu
 ## Security and privacy
 
 - `BINANCE_API_KEY` is read only inside the server route.
+- `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` are read only inside the RWA server route; signatures and credentials are never returned or logged.
 - No wallet connection, signature or transaction is requested.
 - No API secret is serialized to the browser or committed to source.
 - External values are rendered as data, never executed as instructions.

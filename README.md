@@ -41,6 +41,7 @@ The selected xStocks exist as BEP-20 contracts on BNB Smart Chain, where contrac
 - BNB public JSON-RPC for bytecode, symbol, total supply and block proof.
 - PancakeSwap V2 factory/pair reads for real reserves, price, estimated liquidity and $100 price impact.
 - Binance Stocks Trading Market Data through a server-only API key.
+- Binance Web3 RWA Data API through a separate server-only API Key + Secret Key pair and HMAC-SHA256 signing.
 
 The primary LIVE AFTER-HOURS GAP remains blank unless the traditional market is outside regular hours, Binance returns a valid reference and an on-chain market passes liquidity/impact controls.
 
@@ -68,6 +69,7 @@ Ghost Brain, Ghost Council, Ghost Score, Ghost Consensus, Market Constellation, 
 | Reference quote | xStocks `price-data` | Labeled CACHED because the payload has no source timestamp |
 | DEX market | PancakeSwap V2 factory/pair | Accepts only with ≥$1,000 liquidity and ≤2% $100 impact |
 | Traditional quote | Binance Stocks Trading API | LIVE in production for AAPL, NVDA and TSLA through a server-only secret |
+| RWA search, token/reference price and market status | Binance Web3 RWA Data API | UNAVAILABLE until the separate Web3 portal credentials are installed; never simulated |
 
 ## Contracts
 
@@ -89,12 +91,16 @@ The integration uses the official documented `MARKET_DATA` endpoints:
 Set the API key only in the deployment environment:
 
 ```dotenv
-BINANCE_API_KEY=server_side_market_data_key
+BINANCE_API_KEY=
+BINANCE_WEB3_API_KEY=
+BINANCE_WEB3_SECRET_KEY=
 ```
 
 The key is never returned to the browser. Missing credentials, invalid credentials, rate limits, timeout, unsupported asset, empty quote and upstream failures have explicit states.
 
-Copy `.env.example` to a local `.env` only for development. For the public Site, add a secret named exactly `BINANCE_API_KEY` in the Site runtime environment-variable settings, redeploy, then verify `/api/binance-integration?symbol=AAPL`. Never use `NEXT_PUBLIC_BINANCE_API_KEY`.
+Copy `.env.example` to a local `.env` only for development. For the public Site, configure secrets in the Site runtime environment-variable settings and redeploy. `BINANCE_API_KEY` belongs to Stocks Trading; `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` must be issued by the separate Binance Web3 Developer Portal. Never prefix any of them with `NEXT_PUBLIC_`.
+
+Verify Stocks Trading at `/api/binance-integration?symbol=AAPL` and Web3 RWA at `/api/binance-web3-rwa?symbol=AAPL`. See [Binance Web3 RWA technical evidence](docs/BINANCE_WEB3_RWA_TECHNICAL_EVIDENCE.md).
 
 | Safe state | Meaning |
 | --- | --- |

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowUpRight, Database, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { BnbEvidence } from "@/data/bnb-evidence";
 import type { BinanceIntegration } from "@/data/binance-integration";
+import type { BinanceWeb3RwaIntegration } from "@/data/binance-web3-rwa";
 import type { LiveEvidence, LiveEvidenceStatus } from "@/data/live-evidence";
 import type { DataStatus, Locale, SymbolKey } from "@/data/types";
 import { canCalculateAfterHoursGap } from "@/lib/market-session";
@@ -14,6 +15,7 @@ const money = (value: number | null | undefined, digits = 2) => value == null ? 
 export function useIntegrationEvidence(symbol: SymbolKey) {
   const [evidence, setEvidence] = useState<BnbEvidence | null>(null);
   const [binance, setBinance] = useState<BinanceIntegration | null>(null);
+  const [rwa, setRwa] = useState<BinanceWeb3RwaIntegration | null>(null);
   const [live, setLive] = useState<LiveEvidence | null>(null);
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
@@ -21,22 +23,25 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
     const now = new Date().toISOString();
     const fallback: BnbEvidence = { status: "ERROR", integrationStatus: "unavailable", network: "BSC Mainnet", chainId: 56, blockNumber: null, blockHash: null, timestamp: null, sourceName: "BNB Chain Public JSON-RPC", sourceUrl: "https://bsc-dataseed.bnbchain.org", contractName: null, contractAddress: null, valueLabel: null, value: null, explorerBlockUrl: null, explorerContractUrl: null, observedAt: now, error: "Connection unavailable", provider: "xStocks", underlyingSymbol: symbol, tokenSymbol: `${symbol}x` as BnbEvidence["tokenSymbol"], decimals: null, codePresent: false };
     try {
-      const [chainResponse, binanceResponse, liveResponse] = await Promise.all([
+      const [chainResponse, binanceResponse, liveResponse, rwaResponse] = await Promise.all([
         fetch(`/api/bnb-evidence?symbol=${symbol}`, { cache: "no-store" }),
         fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store" }),
         fetch(`/api/live-evidence?symbol=${symbol}`, { cache: "no-store" }),
+        fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store" }),
       ]);
       setEvidence(await chainResponse.json() as BnbEvidence);
       setBinance(await binanceResponse.json() as BinanceIntegration);
       setLive(await liveResponse.json() as LiveEvidence);
+      setRwa(await rwaResponse.json() as BinanceWeb3RwaIntegration);
     } catch {
       setEvidence(fallback);
       setLive(null);
       setBinance({ status: "ERROR", module: "Binance Stocks Trading Market Data", provider: "Binance Developer API", symbol, endpoints: ["/sapi/v1/equity/market/tokenized-assets", `/sapi/v1/equity/market/quote?symbol=${symbol}`, `/sapi/v1/equity/market/exchangeInfo?symbol=${symbol}`], documentationUrl: "https://developers.binance.com/en/docs/catalog/advanced-trading-stocks-trading/api/rest-api/market-data", observedAt: now, latencyMs: null, requestId: "local-fallback", providerRequestId: null, responseStatus: null, requests: [], quoteMaxAgeSeconds: null, tokenizedAsset: null, quote: null, marketInfo: null, error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
+      setRwa({ status: "ERROR", module: "Binance Web3 RWA Data API", provider: "Binance Web3 API", symbol, documentationUrl: "https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data", authenticationUrl: "https://web3.binance.com/en/dev-docs/authentication", observedAt: now, latencyMs: null, requestId: "local-fallback", responseStatus: null, credentialState: "MISSING", requests: [], assets: [], error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
     } finally { setLoading(false); }
   }, [symbol]);
   useEffect(() => { const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, [load]);
-  return { evidence, binance, live, loading, reload: load };
+  return { evidence, binance, rwa, live, loading, reload: load };
 }
 
 export function DataBadge({ status }: { status: DataStatus | LiveEvidenceStatus | "LOADING" }) {
