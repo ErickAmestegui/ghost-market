@@ -4,7 +4,14 @@ import type { SymbolKey } from "@/data/types";
 import { classifyBinanceError } from "@/lib/binance-errors";
 import { validateBinancePayload } from "@/lib/binance-validation";
 
-const BASE_URL = "https://api.binance.com";
+const BASE_URLS = [
+  "https://api.binance.com",
+  "https://api-gcp.binance.com",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+  "https://api3.binance.com",
+  "https://api4.binance.com",
+] as const;
 const ASSETS_ENDPOINT = "/sapi/v1/equity/market/tokenized-assets";
 const QUOTE_ENDPOINT = "/sapi/v1/equity/market/quote";
 const EXCHANGE_ENDPOINT = "/sapi/v1/equity/market/exchangeInfo";
@@ -12,28 +19,34 @@ const DOCS_URL = "https://developers.binance.com/en/docs/catalog/advanced-tradin
 const SYMBOLS = new Set<SymbolKey>(["NVDA", "AAPL", "TSLA"]);
 
 async function binanceFetch(path: string, apiKey: string, allowEmpty = false) {
-  const started = performance.now();
-  const observedAt = new Date().toISOString();
-  const response = await fetch(`${BASE_URL}${path}`, {
-    headers: { "X-MBX-APIKEY": apiKey },
-    signal: AbortSignal.timeout(7_000),
-    cache: "no-store",
-  });
-  const text = await response.text();
-  const requestId = response.headers.get("x-request-id") ?? response.headers.get("x-mbx-uuid");
-  const proof = { endpoint: path, statusCode: response.status, providerRequestId: requestId, latencyMs: Math.round(performance.now() - started), observedAt };
-  if (!response.ok) {
-    const error = new Error(text || `Binance returned ${response.status}`) as Error & { status?: number; requestId?: string | null; proof?: typeof proof };
-    error.status = response.status; error.requestId = requestId; error.proof = proof; throw error;
+  for (const [index, baseUrl] of BASE_URLS.entries()) {
+    const started = performance.now();
+    const observedAt = new Date().toISOString();
+    const response = await fetch(`${baseUrl}${path}`, {
+      headers: { "X-MBX-APIKEY": apiKey },
+      signal: AbortSignal.timeout(7_000),
+      cache: "no-store",
+    });
+    const text = await response.text();
+    const requestId = response.headers.get("x-request-id") ?? response.headers.get("x-mbx-uuid");
+    const proof = { endpoint: `${baseUrl}${path}`, statusCode: response.status, providerRequestId: requestId, latencyMs: Math.round(performance.now() - started), observedAt };
+    const providerBlocked = response.status === 403 && /request blocked|cloudfront|waf/i.test(text);
+    if (providerBlocked && index < BASE_URLS.length - 1) continue;
+    if (!response.ok) {
+      const error = new Error(text || `Binance returned ${response.status}`) as Error & { status?: number; requestId?: string | null; proof?: typeof proof };
+      error.status = response.status; error.requestId = requestId; error.proof = proof; throw error;
+    }
+    if (!text.trim() && !allowEmpty) {
+      const error = new Error("Binance returned an empty response") as Error & { status?: number; requestId?: string | null; proof?: typeof proof };
+      error.status = 200; error.requestId = requestId; error.proof = proof; throw error;
+    }
+    return { data: text.trim() ? JSON.parse(text) as unknown : null, proof };
   }
-  if (!text.trim() && !allowEmpty) {
-    const error = new Error("Binance returned an empty response") as Error & { status?: number; requestId?: string | null; proof?: typeof proof };
-    error.status = 200; error.requestId = requestId; error.proof = proof; throw error;
-  }
-  return { data: text.trim() ? JSON.parse(text) as unknown : null, proof };
+  throw new Error("Binance provider hosts were unavailable");
 }
 
 function safeProviderMessage(message: string) {
+  if (/request blocked|cloudfront|waf/i.test(message)) return "Binance blocked the server request at its network edge.";
   return message.replace(/(?:api[-_ ]?key|signature|token)\s*[:=]\s*[^\s,"}]+/gi, "credential=[redacted]").slice(0, 500);
 }
 

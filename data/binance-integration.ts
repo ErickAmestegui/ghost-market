@@ -1,6 +1,6 @@
 import type { DataStatus, SymbolKey } from "@/data/types";
 
-export type BinanceErrorKind = "MISSING_CREDENTIALS" | "TIMEOUT" | "RATE_LIMITED" | "INVALID_CREDENTIALS" | "EMPTY_RESPONSE" | "ASSET_NOT_FOUND" | "PROVIDER_ERROR";
+export type BinanceErrorKind = "MISSING_CREDENTIALS" | "TIMEOUT" | "RATE_LIMITED" | "INVALID_CREDENTIALS" | "EMPTY_RESPONSE" | "ASSET_NOT_FOUND" | "PROVIDER_BLOCKED" | "PROVIDER_ERROR";
 
 export type BinanceRequestProof = {
   endpoint: string;
