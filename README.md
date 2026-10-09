@@ -4,6 +4,21 @@ Ghost Market answers one question: **when Wall Street is closed, what does an in
 
 It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
+## Guided experience
+
+Beta 0.6 is organized as a calm, mobile-first learning journey instead of a dense terminal:
+
+- one primary action per step and a visible comprehension path;
+- plain-language evidence checks before technical detail;
+- Simple and Pro views backed by the same underlying data;
+- complete English and Spanish controls, plus Calm Mode and reduced-motion support;
+- a clearly gated deterministic demo with eight chapters, including Break the Consensus and The Morning After;
+- resilient `UNAVAILABLE` states when a live provider is incomplete or unreachable.
+
+![Ghost Market desktop](docs/screenshots/ghost-market-desktop.png)
+
+![Ghost Market mobile](docs/screenshots/ghost-market-mobile.png)
+
 ## Why BNB Chain
 
 The selected xStocks exist as BEP-20 contracts on BNB Smart Chain, where contracts, pools, reserves and blocks can be inspected without trusting the interface. Ghost Market uses that transparency to separate four questions that dashboards often collapse into one:
@@ -133,14 +148,14 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
 - [ ] Public repository URL — requires owner GitHub authorization/account access.
 - [ ] Demo video URL — requires an owner-approved recording/upload destination.
-- [ ] Anonymous public site access — requires explicit owner authorization to change access mode and independent-device verification.
+- [x] Anonymous public site access — explicitly authorized by the owner and published through Sites.
 
 ## Current limitations
 
 - Production `BINANCE_API_KEY` is not configured, so Binance success responses cannot yet be demonstrated.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
-- Public repository, video and anonymous-site access remain external publication tasks; no URL or access claim is fabricated.
+- Public repository and demo video remain external publication tasks; no URL or access claim is fabricated.
 
 ## Safety
 
