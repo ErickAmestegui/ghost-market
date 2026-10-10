@@ -44,6 +44,9 @@ The same server route supports `NVDA` and `TSLA`. A verification run after imple
 
 ## Limitations
 
+- The public Binance Skill endpoints returned business-valid JSON during direct and local server tests, but returned an HTML response from the Sites production runtime on 2026-10-10 UTC. Version 18 was therefore rolled back and the integration remains outside production until the provider path is verifiably available from that runtime.
+- The API route records non-JSON provider responses as `UNAVAILABLE`, including the upstream HTTP status and content type, without copying HTML into the product response.
+
 - Public Binance Wallet endpoints may be subject to regional availability and provider changes.
 - No provider source timestamp was returned for price freshness.
 - No on-chain Ondo DEX liquidity is inferred from the Skill response.

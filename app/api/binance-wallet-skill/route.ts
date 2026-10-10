@@ -14,7 +14,24 @@ async function providerGet<T>(name: WalletSkillRequestProof["name"], path: strin
   const observedAt = new Date().toISOString();
   const started = performance.now();
   const response = await fetch(`${BASE}${path}`, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(8_000) });
-  const payload = await response.json() as ProviderPayload<T>;
+  const raw = await response.text();
+  let payload: ProviderPayload<T>;
+  try {
+    payload = JSON.parse(raw) as ProviderPayload<T>;
+  } catch {
+    const contentType = response.headers.get("content-type")?.split(";")[0] ?? "unknown";
+    const proof: WalletSkillRequestProof = {
+      name,
+      endpoint: `${BASE}${path}`,
+      statusCode: response.status,
+      businessCode: null,
+      success: false,
+      latencyMs: Math.round(performance.now() - started),
+      observedAt,
+      providerRequestId: response.headers.get("x-trace-id") ?? response.headers.get("x-request-id") ?? response.headers.get("cf-ray"),
+    };
+    throw Object.assign(new Error(`Binance Wallet Skill provider returned a non-JSON response (HTTP ${response.status}; content-type ${contentType}).`), { proof });
+  }
   const proof: WalletSkillRequestProof = {
     name,
     endpoint: `${BASE}${path}`,
