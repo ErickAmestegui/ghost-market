@@ -5,6 +5,7 @@
 Ghost Market runs two deliberately separate paths.
 
 1. **LIVE EVIDENCE** reads official xStocks metadata, BNB Smart Chain state and PancakeSwap V2 pools at request time. Binance Stocks Trading and Binance Web3 RWA data are requested only by server routes using separate production credentials.
+   The independent Binance Wallet Skill adapter reads public Ondo metadata on BSC and normalizes token price by the provider multiplier without merging Ondo and xStocks identity or liquidity.
 2. **DETERMINISTIC DEMO** runs versioned fixtures through pure consensus, confidence, scoring, replay and scenario functions. It is never promoted to `LIVE`.
 
 ```text

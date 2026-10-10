@@ -5,6 +5,7 @@ const DOCUMENTS = [
   ["architecture", "Architecture", "Trust boundaries, live evidence pipeline, quality gates and security model."],
   ["contracts", "Contracts & provenance", "BSC contract addresses, registries, infrastructure and audited markets."],
   ["technical-evidence", "Binance Web3 technical evidence", "Signed endpoints, observed responses and the unresolved provider restriction."],
+  ["wallet-skill-evidence", "Binance Wallet Skill evidence", "Verified Ondo BSC metadata, multiplier normalization, limitations and reproduction steps."],
 ];
 
 export default function DocumentationIndex() {

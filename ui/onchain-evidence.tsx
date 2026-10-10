@@ -5,6 +5,7 @@ import { ArrowUpRight, Database, RefreshCw, ShieldCheck, TriangleAlert } from "l
 import type { BnbEvidence } from "@/data/bnb-evidence";
 import type { BinanceIntegration } from "@/data/binance-integration";
 import type { BinanceWeb3RwaIntegration } from "@/data/binance-web3-rwa";
+import type { BinanceWalletSkillEvidence } from "@/data/binance-wallet-skill";
 import type { LiveEvidence, LiveEvidenceStatus } from "@/data/live-evidence";
 import type { DataStatus, Locale, SymbolKey } from "@/data/types";
 import { canCalculateAfterHoursGap } from "@/lib/market-session";
@@ -24,6 +25,7 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
   const [evidence, setEvidence] = useState<BnbEvidence | null>(null);
   const [binance, setBinance] = useState<BinanceIntegration | null>(null);
   const [rwa, setRwa] = useState<BinanceWeb3RwaIntegration | null>(null);
+  const [walletSkill, setWalletSkill] = useState<BinanceWalletSkillEvidence | null>(null);
   const [live, setLive] = useState<LiveEvidence | null>(null);
   const [loadedSymbol, setLoadedSymbol] = useState<SymbolKey | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,24 +41,28 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
     setEvidence(null);
     setBinance(null);
     setRwa(null);
+    setWalletSkill(null);
     setLive(null);
     const now = new Date().toISOString();
     const fallback: BnbEvidence = { status: "ERROR", integrationStatus: "unavailable", network: "BSC Mainnet", chainId: 56, blockNumber: null, blockHash: null, timestamp: null, sourceName: "BNB Chain Public JSON-RPC", sourceUrl: "https://bsc-dataseed.bnbchain.org", contractName: null, contractAddress: null, valueLabel: null, value: null, explorerBlockUrl: null, explorerContractUrl: null, observedAt: now, error: "Connection unavailable", provider: "xStocks", underlyingSymbol: symbol, tokenSymbol: `${symbol}x` as BnbEvidence["tokenSymbol"], decimals: null, codePresent: false };
+    const walletSkillFallback: BinanceWalletSkillEvidence = { status: "UNAVAILABLE", module: "Binance Wallet Skill · Tokenized Securities Info", provider: "Binance Skills Hub / Binance Web3 Wallet", skillVersion: "1.1", symbol, documentationUrl: "https://github.com/binance/binance-skills-hub/blob/main/skills/binance-web3/binance-tokenized-securities-info/SKILL.md", observedAt: now, latencyMs: null, requestId: "local-fallback", requests: [], asset: null, assessment: { verdict: "UNAVAILABLE", accepted: [], missing: ["Integration proof could not be loaded"], risks: ["The optional Wallet Skill adapter never blocks primary evidence"] }, error: { kind: "PROVIDER_ERROR", message: "Wallet Skill evidence could not be loaded." } };
     try {
-      const [nextEvidence, nextBinance, nextLive, nextRwa] = await Promise.all([
+      const [nextEvidence, nextBinance, nextLive, nextRwa, nextWalletSkill] = await Promise.all([
         fetchJsonWithOneRetry<BnbEvidence>(`/api/bnb-evidence?symbol=${symbol}`, controller.signal),
         fetch(`/api/binance-integration?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }).then((response) => response.json() as Promise<BinanceIntegration>),
         fetchJsonWithOneRetry<LiveEvidence>(`/api/live-evidence?symbol=${symbol}`, controller.signal),
         fetch(`/api/binance-web3-rwa?symbol=${symbol}`, { cache: "no-store", signal: controller.signal }).then((response) => response.json() as Promise<BinanceWeb3RwaIntegration>),
+        fetchJsonWithOneRetry<BinanceWalletSkillEvidence>(`/api/binance-wallet-skill?symbol=${symbol}`, controller.signal).catch(() => walletSkillFallback),
       ]);
       if (controller.signal.aborted || !requestGate.current!.isCurrent(version)) return;
-      if (![nextEvidence.underlyingSymbol, nextBinance.symbol, nextLive.symbol, nextRwa.symbol].every((actual) => matchesRequestedSymbol(symbol, actual))) {
+      if (![nextEvidence.underlyingSymbol, nextBinance.symbol, nextLive.symbol, nextRwa.symbol, nextWalletSkill.symbol].every((actual) => matchesRequestedSymbol(symbol, actual))) {
         throw new Error("Provider responses did not match the selected asset.");
       }
       setEvidence(nextEvidence);
       setBinance(nextBinance);
       setLive(nextLive);
       setRwa(nextRwa);
+      setWalletSkill(nextWalletSkill);
       setLoadedSymbol(symbol);
     } catch (caught) {
       if (controller.signal.aborted || !requestGate.current!.isCurrent(version) || (caught instanceof DOMException && caught.name === "AbortError")) return;
@@ -64,6 +70,7 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
       setLive(null);
       setBinance({ status: "ERROR", module: "Binance Stocks Trading Market Data", provider: "Binance Developer API", symbol, endpoints: ["/sapi/v1/equity/market/tokenized-assets", `/sapi/v1/equity/market/quote?symbol=${symbol}`, `/sapi/v1/equity/market/exchangeInfo?symbol=${symbol}`], documentationUrl: "https://developers.binance.com/en/docs/catalog/advanced-trading-stocks-trading/api/rest-api/market-data", observedAt: now, latencyMs: null, requestId: "local-fallback", providerRequestId: null, responseStatus: null, requests: [], quoteMaxAgeSeconds: null, tokenizedAsset: null, quote: null, marketInfo: null, error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
       setRwa({ status: "ERROR", module: "Binance Web3 RWA Data API", provider: "Binance Web3 API", symbol, documentationUrl: "https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data", authenticationUrl: "https://web3.binance.com/en/dev-docs/authentication", observedAt: now, latencyMs: null, requestId: "local-fallback", responseStatus: null, credentialState: "MISSING", requests: [], assets: [], error: { kind: "PROVIDER_ERROR", message: "Integration proof could not be loaded." } });
+      setWalletSkill(walletSkillFallback);
       setLoadedSymbol(symbol);
     } finally {
       if (requestGate.current!.isCurrent(version)) setLoading(false);
@@ -79,7 +86,7 @@ export function useIntegrationEvidence(symbol: SymbolKey) {
     };
   }, [load]);
   const current = loadedSymbol === symbol;
-  return { evidence: current ? evidence : null, binance: current ? binance : null, rwa: current ? rwa : null, live: current ? live : null, loading: loading || !current, reload: load };
+  return { evidence: current ? evidence : null, binance: current ? binance : null, rwa: current ? rwa : null, walletSkill: current ? walletSkill : null, live: current ? live : null, loading: loading || !current, reload: load };
 }
 
 export function DataBadge({ status }: { status: DataStatus | LiveEvidenceStatus | "LOADING" }) {

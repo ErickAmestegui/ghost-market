@@ -5,12 +5,14 @@ import readme from "../../../README.md?raw";
 import architecture from "../../../docs/ARCHITECTURE.md?raw";
 import contracts from "../../../docs/CONTRACTS.md?raw";
 import technicalEvidence from "../../../docs/BINANCE_WEB3_RWA_TECHNICAL_EVIDENCE.md?raw";
+import walletSkillEvidence from "../../../docs/BINANCE_WALLET_SKILL_EVIDENCE.md?raw";
 
 const DOCUMENTS = {
   readme: { title: "README", source: readme },
   architecture: { title: "Architecture", source: architecture },
   contracts: { title: "Contracts & provenance", source: contracts },
   "technical-evidence": { title: "Binance Web3 technical evidence", source: technicalEvidence },
+  "wallet-skill-evidence": { title: "Binance Wallet Skill evidence", source: walletSkillEvidence },
 } as const;
 
 export function generateStaticParams() {

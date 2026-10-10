@@ -42,6 +42,7 @@ The selected xStocks exist as BEP-20 contracts on BNB Smart Chain, where contrac
 - PancakeSwap V2 factory/pair reads for real reserves, price, estimated liquidity and $100 price impact.
 - Binance Stocks Trading Market Data through a server-only API key.
 - Binance Web3 RWA Data API through a separate server-only API Key + Secret Key pair and HMAC-SHA256 signing.
+- Official Binance Wallet Skill `binance-tokenized-securities-info` v1.1 through public read-only endpoints; Ondo identity and multiplier data stay separate from xStocks.
 
 The primary LIVE AFTER-HOURS GAP remains blank unless the traditional market is outside regular hours, Binance returns a valid reference and an on-chain market passes liquidity/impact controls.
 
@@ -100,7 +101,7 @@ The key is never returned to the browser. Missing credentials, invalid credentia
 
 Copy `.env.example` to a local `.env` only for development. For the public Site, configure secrets in the Site runtime environment-variable settings and redeploy. `BINANCE_API_KEY` belongs to Stocks Trading; `BINANCE_WEB3_API_KEY` and `BINANCE_WEB3_SECRET_KEY` must be issued by the separate Binance Web3 Developer Portal. Never prefix any of them with `NEXT_PUBLIC_`.
 
-Verify Stocks Trading at `/api/binance-integration?symbol=AAPL` and Web3 RWA at `/api/binance-web3-rwa?symbol=AAPL`. See [Binance Web3 RWA technical evidence](docs/BINANCE_WEB3_RWA_TECHNICAL_EVIDENCE.md).
+Verify Stocks Trading at `/api/binance-integration?symbol=AAPL`, signed Web3 RWA at `/api/binance-web3-rwa?symbol=AAPL`, and the public Wallet Skill adapter at `/api/binance-wallet-skill?symbol=AAPL`. See [Binance Web3 RWA technical evidence](docs/BINANCE_WEB3_RWA_TECHNICAL_EVIDENCE.md) and [Wallet Skill evidence](docs/BINANCE_WALLET_SKILL_EVIDENCE.md).
 
 | Safe state | Meaning |
 | --- | --- |
@@ -166,7 +167,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - Production Binance credential names are configured as server-only Sites secrets; their values are hidden and never returned to the browser.
 - Binance Web3 currently returns HTTP 200 with business code `40304` (`Service not available due to compliance restriction`) for both RWA Platforms and Market Supported Chains. Ghost Market exposes this as an error and makes no LIVE claim.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
-- No wallet, transaction, Wallet Skill, ERC-8004 identity or persistent agent is implemented.
+- No connected wallet, transaction, ERC-8004 identity or persistent agent is implemented. The Binance Wallet Skill integration is read-only and creates no signatures or transactions.
 - The GitHub repository is configured and synchronized privately. Its history, current tree and compiled bundles must pass the final secret review before the owner explicitly authorizes public visibility.
 
 ## Safety
