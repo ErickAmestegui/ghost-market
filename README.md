@@ -5,7 +5,7 @@ Ghost Market answers one question: **when Wall Street is closed, what does an in
 It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
 - [Public deployment](https://ghost-market-beta.lorgiogc.chatgpt.site/)
-- [36-second product walkthrough](https://ghost-market-beta.lorgiogc.chatgpt.site/ghost-market-demo.webm)
+- [Official BNB Hack demo video](https://www.youtube.com/watch?v=puRMv_Wu2WA)
 
 ## Guided experience
 
@@ -163,7 +163,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [ ] Usable Binance Web3 response — signed requests currently return business code `40304`.
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
 - [x] Public repository URL — <https://github.com/ErickAmestegui/ghost-market>
-- [x] Demo video URL — hosted with the public Site and verified at 36.92 seconds.
+- [x] Official BNB Hack demo video — https://www.youtube.com/watch?v=puRMv_Wu2WA
 - [x] Anonymous public site access — explicitly authorized by the owner and published through Sites.
 
 ## Current limitations
