@@ -59,6 +59,8 @@ Ghost Brain, Ghost Council, Ghost Score, Ghost Consensus, Market Constellation, 
 | REJECTED | Real observation that failed market-quality controls |
 | UNAVAILABLE | Required source, credential, pool or value is missing |
 | SIMULATED | Versioned deterministic fixture |
+| LOCAL VERIFIED | Reproduced in a private local lab; not evidence of public runtime behavior |
+| NOT DEPLOYED | Source or evidence exists locally or in Git, but is not running on the public Site |
 
 ## Real integrations
 
@@ -139,6 +141,8 @@ Recommended functional checks:
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contracts and provenance](docs/CONTRACTS.md)
+- [Judge integration evidence: Wallet Skill, Agentic Wallet, Ghost Guardian and BNB Agent Studio](docs/JUDGE_INTEGRATION_EVIDENCE.md)
+- [Ghost Guardian reproducible read-only scripts](scripts/ghost-guardian/README.md)
 - Developer Experience Report: submitted privately; no public report URL is claimed by the application
 - [License](LICENSE)
 
@@ -158,7 +162,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [x] Authenticated Binance Stocks transport success — HTTP 200 verified for AAPL, NVDA and TSLA; price freshness remains CACHED.
 - [ ] Usable Binance Web3 response — signed requests currently return business code `40304`.
 - [ ] Accepted on-chain xStock market — none found in the audited V2 routes.
-- [ ] Public repository URL — the reviewed repository exists at `https://github.com/ErickAmestegui/ghost-market` and remains private until the owner explicitly approves the visibility change.
+- [x] Public repository URL — <https://github.com/ErickAmestegui/ghost-market>
 - [x] Demo video URL — hosted with the public Site and verified at 36.92 seconds.
 - [x] Anonymous public site access — explicitly authorized by the owner and published through Sites.
 
@@ -168,7 +172,7 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - Binance Web3 currently returns HTTP 200 with business code `40304` (`Service not available due to compliance restriction`) for both RWA Platforms and Market Supported Chains. Ghost Market exposes this as an error and makes no LIVE claim.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
 - No connected wallet, transaction, ERC-8004 identity or persistent agent is implemented. The Binance Wallet Skill integration is read-only and creates no signatures or transactions.
-- The GitHub repository is public at <https://github.com/ErickAmestegui/ghost-market>. A final secret review remains mandatory before any future publication or deployment.
+- The GitHub repository is public at <https://github.com/ErickAmestegui/ghost-market>. Every future publication or deployment still requires a fresh secret review.
 
 ## Safety
 
