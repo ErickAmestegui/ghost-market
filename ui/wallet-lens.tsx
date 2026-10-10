@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CircleAlert, ExternalLink, Link2, LoaderCircle, Plug, Radar, RefreshCw, Search, ShieldCheck, Unplug } from "lucide-react";
-import type { Locale, SymbolKey } from "@/data/types";
+import { CircleAlert, ExternalLink, LoaderCircle, Plug, Radar, RefreshCw, Search, ShieldCheck, Unplug } from "lucide-react";
+import type { Locale } from "@/data/types";
 import { BSC_CHAIN_ID, formatWeiToBnb, isBscAddress, parseChainId, shortAddress } from "@/lib/wallet-lens";
 
 type Provider = {
@@ -39,19 +39,12 @@ const initialWallet: WalletState = { status: "idle", address: null, chainId: nul
 const tx = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
 const when = (value: string | null | undefined, locale: Locale) => value ? new Date(value).toLocaleString(locale === "en" ? "en-US" : "es-BO", { dateStyle: "medium", timeStyle: "medium" }) : "—";
 
-const SOCIAL = {
-  AAPL: { company: "Apple", token: "AAPLx", newsroom: "https://www.apple.com/newsroom/", x: "https://x.com/Apple", xSearch: "https://x.com/search?q=%24AAPL%20OR%20AAPLx&src=typed_query", contract: "0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a" },
-  NVDA: { company: "NVIDIA", token: "NVDAx", newsroom: "https://nvidianews.nvidia.com/", x: "https://x.com/nvidia", xSearch: "https://x.com/search?q=%24NVDA%20OR%20NVDAx&src=typed_query", contract: "0xc845b2894dbddd03858fd2d643b4ef725fe0849d" },
-  TSLA: { company: "Tesla", token: "TSLAx", newsroom: "https://ir.tesla.com/", x: "https://x.com/Tesla", xSearch: "https://x.com/search?q=%24TSLA%20OR%20TSLAx&src=typed_query", contract: "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0" },
-} satisfies Record<SymbolKey, { company: string; token: string; newsroom: string; x: string; xSearch: string; contract: string }>;
-
-export function WalletLens({ locale, symbol, onSymbol, onInvestigate }: { locale: Locale; symbol: SymbolKey; onSymbol: (symbol: SymbolKey) => void; onInvestigate: () => void }) {
+export function WalletLens({ locale, onInvestigate }: { locale: Locale; onInvestigate: () => void }) {
   const providerRef = useRef<Provider | null>(null);
   const [wallet, setWallet] = useState<WalletState>(initialWallet);
   const [publicAddress, setPublicAddress] = useState("");
   const [publicState, setPublicState] = useState<"idle" | "loading" | "done">("idle");
   const [publicResult, setPublicResult] = useState<PublicResult | null>(null);
-  const [consultedAt, setConsultedAt] = useState<string | null>(null);
 
   const readWallet = useCallback(async (provider: Provider, suppliedAddress?: string) => {
     try {
@@ -164,24 +157,6 @@ export function WalletLens({ locale, symbol, onSymbol, onInvestigate }: { locale
 
     <button className="risk-bridge" onClick={onInvestigate}><Radar /><span><b>{tx(locale, "Investigate Market Risk", "Investigar riesgo de mercado")}</b><small>{tx(locale, "Continue to contract identity, liquidity, execution risk and data-state evidence.", "Continúa con identidad de contrato, liquidez, riesgo de ejecución y estado de datos.")}</small></span><ExternalLink /></button>
 
-    <SocialPulse locale={locale} symbol={symbol} onSymbol={onSymbol} consultedAt={consultedAt} onExternal={() => setConsultedAt(new Date().toISOString())} />
-  </section>;
-}
-
-function SocialPulse({ locale, symbol, onSymbol, consultedAt, onExternal }: { locale: Locale; symbol: SymbolKey; onSymbol: (symbol: SymbolKey) => void; consultedAt: string | null; onExternal: () => void }) {
-  const asset = SOCIAL[symbol];
-  const links = [
-    ["Binance Stocks", "https://developers.binance.com/en/docs/catalog/advanced-trading-stocks-trading/api/rest-api/market-data"],
-    ["xStocks", "https://docs.xstocks.fi/developers"],
-    ["Ondo", "https://docs.ondo.finance"],
-    ["BscScan", `https://bscscan.com/token/${asset.contract}`],
-    ["BNB Chain RPC", "https://docs.bnbchain.org/bnb-smart-chain/developers/json_rpc/json-rpc-endpoint/"],
-  ];
-  return <section className="social-pulse"><div className="pulse-heading"><div><p className="eyebrow">GHOST SOCIAL PULSE</p><h2>Beyond Prices. Understand the Signals.</h2><p>{tx(locale, "A source radar—not a sentiment score. Social activity never changes Ghost Score or replaces price evidence.", "Un radar de fuentes, no un score de sentimiento. La actividad social nunca cambia Ghost Score ni sustituye evidencia de precio.")}</p></div><Radar /></div><div className="pulse-assets">{(Object.keys(SOCIAL) as SymbolKey[]).map((key) => <button key={key} className={key === symbol ? "active" : ""} onClick={() => onSymbol(key)}><b>{SOCIAL[key].company}</b><span>{SOCIAL[key].token}</span></button>)}</div>
-    <div className="radar-grid"><article><header><span>{tx(locale, "News and issuer information", "Noticias e información del emisor")}</span><TrustBadge status="CONFIRMED SOURCE" /></header><h3>{asset.company} · {asset.token}</h3><p>{tx(locale, "Ghost does not embed a live news feed without an authorized, timestamped provider. Open the official newsroom instead.", "Ghost no inserta noticias en vivo sin un proveedor autorizado y con timestamp. Abre la sala de prensa oficial.")}</p><a href={asset.newsroom} target="_blank" rel="noreferrer" onClick={onExternal}>{tx(locale, "Open official newsroom", "Abrir sala de prensa oficial")} <ExternalLink /></a><small>{tx(locale, "Embedded feed", "Feed integrado")}: <TrustBadge status="UNAVAILABLE" /> · {tx(locale, "Last external consultation", "Última consulta externa")}: {when(consultedAt, locale)}</small></article>
-      <article><header><span>X / Twitter</span><TrustBadge status="UNAVAILABLE" /></header><h3>{tx(locale, "Authorized posts are not embedded", "No se insertan publicaciones sin autorización")}</h3><p>{tx(locale, "Use the official account or a clearly marked external search. Conversation volume is not credibility.", "Usa la cuenta oficial o una búsqueda externa claramente marcada. El volumen de conversación no equivale a credibilidad.")}</p><div className="pulse-links"><a href={asset.x} target="_blank" rel="noreferrer" onClick={onExternal}>{asset.company} on X <ExternalLink /></a><a href={asset.xSearch} target="_blank" rel="noreferrer" onClick={onExternal}>{tx(locale, "External X search", "Búsqueda externa en X")} <ExternalLink /></a></div><small><TrustBadge status="UNVERIFIED CLAIM" /> {tx(locale, "Applies to public posts not independently verified by Ghost.", "Aplica a publicaciones públicas no verificadas independientemente por Ghost.")}</small></article>
-      <article className="source-radar"><header><span>{tx(locale, "Blockchain source radar", "Radar de fuentes blockchain")}</span><TrustBadge status="CONFIRMED SOURCE" /></header>{links.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noreferrer" onClick={onExternal}><Link2 /><span><b>{label}</b><small>{tx(locale, "Official documentation or public explorer", "Documentación oficial o explorador público")}</small></span><ExternalLink /></a>)}</article>
-    </div><div className="trust-legend"><TrustBadge status="CONFIRMED SOURCE" /><TrustBadge status="UNVERIFIED CLAIM" /><TrustBadge status="HISTORICAL" /><TrustBadge status="UNAVAILABLE" /></div>
   </section>;
 }
 
@@ -190,4 +165,3 @@ function LensBadge({ status }: { status: WalletState["status"] }) {
   const tone = status === "connected" ? "confirmed" : status === "wrong-network" || status === "provider-error" || status === "rejected" ? "warning" : status === "connecting" ? "loading" : "muted";
   return <span className={`lens-badge ${tone}`}>{status.replaceAll("-", " ").toUpperCase()}</span>;
 }
-function TrustBadge({ status }: { status: "CONFIRMED SOURCE" | "UNVERIFIED CLAIM" | "HISTORICAL" | "UNAVAILABLE" }) { return <span className={`trust-badge trust-${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>; }

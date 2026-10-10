@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleAlert,
   CircleDashed, CircleX, ExternalLink, FlaskConical, Home, Info, Languages,
-  MoonStar, PlayCircle, Radar, RefreshCw, Search, ShieldCheck, SlidersHorizontal,
+  MoonStar, PlayCircle, Radar, RadioTower, RefreshCw, Search, ShieldCheck, SlidersHorizontal,
   Sparkles, TriangleAlert,
 } from "lucide-react";
 import { marketDataAdapter } from "@/data/adapters";
@@ -21,8 +21,9 @@ import { useIntegrationEvidence } from "@/ui/onchain-evidence";
 import { normalizePulseItems } from "@/lib/pulse";
 import { ModuleErrorBoundary } from "@/components/module-error-boundary";
 import { WalletLens } from "@/ui/wallet-lens";
+import { SocialPulse } from "@/ui/social-pulse";
 
-type Section = "home" | "live" | "lens" | "demo" | "learn" | "about";
+type Section = "home" | "live" | "lens" | "pulse" | "demo" | "learn" | "about";
 type DisplayMode = "simple" | "pro";
 type DemoPanel = "brain" | "council" | "scenarios" | "research" | "pulse";
 type DataState = "LIVE" | "CACHED" | "REJECTED" | "UNAVAILABLE" | "ERROR" | "SIMULATED" | "LOADING";
@@ -37,6 +38,7 @@ const NAV: Array<{ id: Section; icon: typeof Home; en: string; es: string }> = [
   { id: "home", icon: Home, en: "Home", es: "Inicio" },
   { id: "live", icon: ShieldCheck, en: "Live Evidence", es: "Evidencia" },
   { id: "lens", icon: Radar, en: "Wallet Lens", es: "Wallet Lens" },
+  { id: "pulse", icon: RadioTower, en: "Social Pulse", es: "Social Pulse" },
   { id: "demo", icon: PlayCircle, en: "Demo", es: "Demo" },
   { id: "learn", icon: BookOpen, en: "Learn", es: "Aprender" },
   { id: "about", icon: Info, en: "About", es: "Acerca de" },
@@ -88,23 +90,24 @@ export default function GhostMarket() {
     <div className="mode-brief" role="status"><SlidersHorizontal /><span>{displayMode === "simple" ? t(locale, "SIMPLE · Guided essentials; every risk remains visible", "SIMPLE · Esenciales guiados; todos los riesgos siguen visibles") : t(locale, "PRO · Full sources, request IDs and quality gates", "PRO · Fuentes, request IDs y controles de calidad completos")}</span></div>
     {section === "home" && <Welcome locale={locale} loading={loading} live={live} evidenceStatus={evidence?.status} onStart={() => { setLiveStep(0); navigate("live"); }} onTechnical={() => { changeMode("pro"); setLiveStep(1); navigate("live"); }} />}
     {section === "live" && <LiveJourney locale={locale} displayMode={displayMode} step={liveStep} symbol={symbol} loading={loading} evidence={evidence} binance={binance} rwa={rwa} walletSkill={walletSkill} live={live} onStep={setLiveStep} onSelect={chooseAsset} onReload={reload} onDemo={startDemo} />}
-    {section === "lens" && <WalletLens locale={locale} symbol={symbol} onSymbol={setSymbol} onInvestigate={() => { setLiveStep(1); navigate("live"); }} />}
+    {section === "lens" && <WalletLens locale={locale} onInvestigate={() => { setLiveStep(1); navigate("live"); }} />}
+    {section === "pulse" && <SocialPulse locale={locale} symbol={symbol} displayMode={displayMode} onSymbol={setSymbol} onInvestigate={() => { setLiveStep(1); navigate("live"); }} />}
     {section === "demo" && <DemoJourney locale={locale} displayMode={displayMode} symbol={symbol} walletSkill={walletSkill} consent={demoConsent} chapter={demoChapter} panel={demoPanel} breakPhase={breakPhase} calmMode={calmMode} onConsent={() => setDemoConsent(true)} onChapter={(next) => { setDemoChapter(next); if (next < 4) setBreakPhase(0); }} onPanel={setDemoPanel} onBreak={() => { if (breakTimer.current) clearTimeout(breakTimer.current); setBreakPhase(1); if (calmMode) setBreakPhase(2); else breakTimer.current = setTimeout(() => setBreakPhase(2), 1100); }} onSelectSymbol={setSymbol} onExit={() => navigate("live")} />}
     {section === "learn" && <Learn locale={locale} />}
     {section === "about" && <About locale={locale} binance={binance} rwa={rwa} />}
     <MobileNav section={section} locale={locale} onNavigate={navigate} />
-    <footer className="gm-footer"><div><GhostGlyph /><span>Ghost Market Beta 0.7</span></div><p>{t(locale, "Evidence and education, never financial advice.", "Evidencia y educación, nunca asesoramiento financiero.")}</p><a href="/docs">{t(locale, "Technical documentation", "Documentación técnica")} <ExternalLink /></a></footer>
+    <footer className="gm-footer"><div><GhostGlyph /><span>Ghost Market Beta 0.8</span></div><p>{t(locale, "Evidence and education, never financial advice.", "Evidencia y educación, nunca asesoramiento financiero.")}</p><a href="/docs">{t(locale, "Technical documentation", "Documentación técnica")} <ExternalLink /></a></footer>
   </main>;
 }
 
 function Header({ section, locale, displayMode, calmMode, onNavigate, onLocale, onMode, onCalm }: { section: Section; locale: Locale; displayMode: DisplayMode; calmMode: boolean; onNavigate: (section: Section) => void; onLocale: (locale: Locale) => void; onMode: (mode: DisplayMode) => void; onCalm: () => void }) {
   const calmLabel = calmMode ? t(locale, "Calm · motion reduced", "Calma · movimiento reducido") : t(locale, "Calm", "Calma");
-  return <header className="gm-header"><button className="gm-brand" onClick={() => onNavigate("home")} aria-label={t(locale, "Go home", "Ir al inicio")}><GhostGlyph /><span>GHOST MARKET<small>GOLDEN EDITION · BETA 0.7</small></span></button><nav aria-label={t(locale, "Main navigation", "Navegación principal")}>{NAV.map((item) => <button key={item.id} className={section === item.id ? "active" : ""} onClick={() => onNavigate(item.id)}>{locale === "en" ? item.en : item.es}</button>)}</nav><div className="gm-tools"><div className="segmented" aria-label={t(locale, "Information depth", "Profundidad de información")}><button className={displayMode === "simple" ? "active" : ""} title={t(locale, "Guided essentials with all risks visible", "Esenciales guiados con todos los riesgos visibles")} onClick={() => onMode("simple")}>Simple</button><button className={displayMode === "pro" ? "active" : ""} title={t(locale, "Full evidence and technical metadata", "Evidencia completa y metadatos técnicos")} onClick={() => onMode("pro")}>Pro</button></div><button className="icon-control" onClick={() => onLocale(locale === "en" ? "es" : "en")} aria-label={t(locale, "Change language", "Cambiar idioma")}><Languages /><span>{locale.toUpperCase()}</span></button><button className={`icon-control ${calmMode ? "active" : ""}`} onClick={onCalm} aria-label={calmLabel} title={calmLabel} aria-pressed={calmMode}><MoonStar /><span>{calmLabel}</span></button></div></header>;
+  return <header className="gm-header"><button className="gm-brand" onClick={() => onNavigate("home")} aria-label={t(locale, "Go home", "Ir al inicio")}><GhostGlyph /><span>GHOST MARKET<small>GOLDEN EDITION · BETA 0.8</small></span></button><nav aria-label={t(locale, "Main navigation", "Navegación principal")}>{NAV.map((item) => <button key={item.id} className={section === item.id ? "active" : ""} onClick={() => onNavigate(item.id)}>{locale === "en" ? item.en : item.es}</button>)}</nav><div className="gm-tools"><div className="segmented" aria-label={t(locale, "Information depth", "Profundidad de información")}><button className={displayMode === "simple" ? "active" : ""} title={t(locale, "Guided essentials with all risks visible", "Esenciales guiados con todos los riesgos visibles")} onClick={() => onMode("simple")}>Simple</button><button className={displayMode === "pro" ? "active" : ""} title={t(locale, "Full evidence and technical metadata", "Evidencia completa y metadatos técnicos")} onClick={() => onMode("pro")}>Pro</button></div><button className="icon-control" onClick={() => onLocale(locale === "en" ? "es" : "en")} aria-label={t(locale, "Change language", "Cambiar idioma")}><Languages /><span>{locale.toUpperCase()}</span></button><button className={`icon-control ${calmMode ? "active" : ""}`} onClick={onCalm} aria-label={calmLabel} title={calmLabel} aria-pressed={calmMode}><MoonStar /><span>{calmLabel}</span></button></div></header>;
 }
 
 function ComprehensionProgress({ locale, section, liveStep, demoChapter }: { locale: Locale; section: Section; liveStep: number; demoChapter: number }) {
   const labels = locale === "en" ? ["Tonight", "Evidence", "Market", "Analysis", "Replay"] : ["Esta noche", "Evidencia", "Mercado", "Análisis", "Replay"];
-  const active = section === "home" ? 0 : section === "live" ? Math.min(3, liveStep) : section === "lens" ? 3 : section === "demo" ? Math.min(4, 3 + Math.ceil((demoChapter + 1) / 8)) : 0;
+  const active = section === "home" ? 0 : section === "live" ? Math.min(3, liveStep) : section === "lens" || section === "pulse" ? 3 : section === "demo" ? Math.min(4, 3 + Math.ceil((demoChapter + 1) / 8)) : 0;
   return <div className="journey-progress" aria-label={t(locale, "Understanding progress", "Progreso de comprensión")}><div className="journey-track"><span style={{ width: `${active / 4 * 100}%` }} /></div>{labels.map((label, index) => <div key={label} className={index <= active ? "reached" : ""}><i>{index < active ? <Check /> : index + 1}</i><span>{label}</span></div>)}</div>;
 }
 
