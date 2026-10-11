@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Blocks, CircleAlert, ExternalLink, FileSearch, LoaderCircle, Search, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Blocks, CircleAlert, Download, ExternalLink, FileSearch, Fingerprint, LoaderCircle, Printer, Search, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { Locale } from "@/data/types";
 
 type Report = {
@@ -15,6 +15,8 @@ type Report = {
   explanation?: { generator: string; text: string };
   sources?: Array<{ label: string; url: string }>;
   warnings?: string[];
+  receipt?: Record<string, unknown>;
+  receiptHashSha256?: string;
 };
 
 const tx = (locale: Locale, en: string, es: string) => locale === "en" ? en : es;
@@ -53,6 +55,16 @@ export function GhostGuardian({ locale, displayMode }: { locale: Locale; display
 
   const route = report?.routes?.[0];
   const tone = report?.status === "REJECTED" ? "rejected" : report?.status === "CANDIDATE FOR FURTHER REVIEW" ? "review" : "insufficient";
+  const downloadReceipt = () => {
+    if (!report?.receipt || !report.receiptHashSha256) return;
+    const payload = JSON.stringify({ receipt: report.receipt, receiptHashSha256: report.receiptHashSha256 }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `ghost-investigation-${report.requestId ?? "receipt"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
   return <section className="page-shell guardian-page">
     <div className="guardian-hero"><div><p className="eyebrow">GHOST GUARDIAN 2.0 · PUBLIC RUNTIME</p><h1>{tx(locale, "Investigate one route. Preserve every unknown.", "Investiga una ruta. Conserva cada incógnita.")}</h1><p>{tx(locale, "Request-time, read-only BSC research for a bounded hypothetical input. It verifies a single PancakeSwap V2 AAPLon/USDT pool and never requests a wallet, signature or trade.", "Investigación BSC en tiempo de solicitud y solo lectura para una entrada hipotética limitada. Verifica una sola pool PancakeSwap V2 AAPLon/USDT y nunca solicita wallet, firma ni operación.")}</p></div><div className="guardian-seal"><ShieldCheck /><b>READ ONLY</b><span>CHAIN 56</span></div></div>
 
@@ -65,6 +77,7 @@ export function GhostGuardian({ locale, displayMode }: { locale: Locale; display
       <div className="guardian-evidence-grid"><article><header><Blocks />{tx(locale, "Verified evidence", "Evidencia verificada")}</header><dl><div><dt>{tx(locale, "Network", "Red")}</dt><dd>{tx(locale, report.input?.network ?? "—", "BNB Smart Chain Mainnet")} · {report.input?.chainId ?? 56}</dd></div><div><dt>{tx(locale, "Contract", "Contrato")}</dt><dd>{report.identity?.tokenContract ?? tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div><div><dt>Block</dt><dd>{report.freshness?.blockNumber?.toLocaleString() ?? tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div><div><dt>{tx(locale, "Block time", "Hora de bloque")}</dt><dd>{report.freshness?.blockTime ? new Date(report.freshness.blockTime).toLocaleString(locale === "en" ? "en-US" : "es-BO") : tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div></dl></article><article className="not-checked"><header><CircleAlert />NOT CHECKED</header>{(report.notChecked ?? []).map((item) => <p key={item}>{locale === "es" ? notCheckedEs[item] ?? item : item}</p>)}</article></div>
       <button className="guardian-why" onClick={() => setShowWhy((value) => !value)}><FileSearch /><span><b>{tx(locale, "Why this result?", "¿Por qué este resultado?")}</b><small>{tx(locale, "Generate an explanation strictly from the verified dossier", "Generar una explicación solo desde el expediente verificado")}</small></span></button>
       {showWhy && <div className="guardian-explanation"><span>{report.explanation?.generator ?? "DETERMINISTIC_EVIDENCE_EXPLAINER"}</span><p>{locale === "es" && route ? `Esta única ruta PancakeSwap V2 AAPLon/USDT fue rechazada porque las reservas verificadas de la pool implican ${route.estimate.priceImpactPercent.toFixed(2)}% de impacto de ejecución para una entrada hipotética de ${report.input?.amountUsdt} USDT, por encima del umbral experimental de revisión de ${report.threshold?.maxPriceImpactPercent}%. El hallazgo no aplica a rutas que no fueron revisadas.` : report.explanation?.text}</p><small>{tx(locale, "This is a deterministic evidence explainer, not a hidden or simulated LLM call.", "Este es un explicador determinista de evidencia, no una llamada oculta o simulada a un LLM.")}</small></div>}
+      {report.receipt && report.receiptHashSha256 && <section className="guardian-receipt"><div className="guardian-receipt-title"><Fingerprint /><div><span>GHOST INVESTIGATION RECEIPT</span><b>SHA-256</b></div></div><code>{report.receiptHashSha256}</code><p>{tx(locale, "The hash covers the canonical JSON dossier and detects changes. It is not a signature, attestation, or safe-to-trade claim.", "El hash cubre el expediente JSON canónico y detecta cambios. No es una firma, certificación ni conclusión de que sea seguro operar.")}</p><div><button onClick={downloadReceipt}><Download />{tx(locale, "Download JSON", "Descargar JSON")}</button><button onClick={() => window.print()}><Printer />{tx(locale, "Print receipt", "Imprimir recibo")}</button></div></section>}
       {displayMode === "pro" && <details className="guardian-pro" open><summary>{tx(locale, "Pro evidence dossier", "Expediente Pro")}</summary><dl><div><dt>Request ID</dt><dd>{report.requestId ?? "—"}</dd></div><div><dt>{tx(locale, "Observed", "Observado")}</dt><dd>{report.observedAt ?? "—"}</dd></div><div><dt>Mode / transactions</dt><dd>{report.mode ?? "READ_ONLY"} / {report.transactions ?? 0}</dd></div><div><dt>{tx(locale, "Threshold", "Umbral")}</dt><dd>{report.threshold ? `${report.threshold.maxPriceImpactPercent}% · EXPERIMENTAL` : "—"}</dd></div></dl><div className="guardian-links">{report.sources?.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.label}<ExternalLink /></a>)}</div></details>}
       <footer>{(report.warnings ?? []).map((warning) => <p key={warning}><TriangleAlert />{locale === "es" ? warningEs[warning] ?? warning : warning}</p>)}</footer>
     </div>}

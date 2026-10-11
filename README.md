@@ -18,12 +18,15 @@ Beta 0.9 is organized as a calm, mobile-first learning journey instead of a dens
 - a clearly gated deterministic demo with eight chapters, including Break the Consensus and The Morning After;
 - resilient `UNAVAILABLE` states when a live provider is incomplete or unreachable.
 - Ghost Guardian 2.0: a public, request-time, read-only investigation of the single verified PancakeSwap V2 AAPLon/USDT route for a bounded hypothetical input.
+- Ghost Investigation Receipt: canonical JSON with a reproducible SHA-256 integrity hash, downloadable or printable without a wallet.
 
 ## Ghost Guardian 2.0
 
 `Investigate Route` reads BNB Smart Chain at one block, verifies the AAPLon contract and PancakeSwap V2 pair through the factory, reads request-time reserves, and estimates constant-product execution impact with an explicit 0.25% fee assumption. It returns only `REJECTED`, `INSUFFICIENT EVIDENCE`, or `CANDIDATE FOR FURTHER REVIEW`.
 
 The public runtime never requests a wallet and contains no trading, approval, signing, transfer or payment path. Unchecked DEX routes, an Agentic Wallet executable quote route, gas, transfer restrictions and independent reference-price freshness remain `NOT CHECKED`. The “Why this result?” explanation is a deterministic rendering of the verified dossier, explicitly not a simulated LLM call.
+
+Each completed investigation also returns a canonical receipt containing the route-scoped dossier, source/tool list, public parameters, algorithm version and limitations. Its SHA-256 hash detects changes to that JSON; it is not a signature, attestation or safe-to-trade claim. A BNB Agent Studio adapter and sanitized local model-to-tool evidence are documented in [Ghost Nightwatch evidence](docs/BNB_AGENT_STUDIO_NIGHTWATCH_EVIDENCE.md). The model harness remains `LOCAL VERIFIED / NOT PUBLICLY DEPLOYED`.
 
 ![Ghost Market desktop](docs/screenshots/ghost-market-desktop.png)
 

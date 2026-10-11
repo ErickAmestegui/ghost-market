@@ -4,6 +4,7 @@ import {
   classifyGuardianRoute, decodeAddress, decodeString, decodeUint, estimateV2Route, explainGuardianDecision,
   formatUnits, padAddress, validateGuardianInput,
 } from "@/lib/ghost-guardian";
+import { buildGuardianReceipt, sha256Canonical } from "@/lib/ghost-receipt";
 
 const RPC_URLS = ["https://bsc-dataseed.bnbchain.org", "https://bsc.publicnode.com"];
 
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     const estimate = estimateV2Route(validation.amount, counterReserve, tokenReserve);
     const decision = classifyGuardianRoute(estimate.priceImpactPercent);
 
-    return NextResponse.json({
+    const dossier = {
       status: decision, requestId, observedAt, mode: "READ_ONLY", transactions: 0,
       input: { asset: GUARDIAN_ASSET.id, amountUsdt: validation.amount, network: "BNB Smart Chain Mainnet", chainId },
       identity: { ticker: GUARDIAN_ASSET.ticker, tokenSymbol, tokenContract: GUARDIAN_ASSET.contract, bytecodePresent: code !== "0x" },
@@ -99,15 +100,21 @@ export async function POST(request: NextRequest) {
         { label: "Observed block", url: `https://bscscan.com/block/${blockNumber}` },
       ],
       warnings: ["Research result only. Never a safe-to-trade conclusion.", "No order, approval, signature, transfer or transaction was requested or produced."],
-    }, { headers: baseHeaders });
+    };
+    const receipt = buildGuardianReceipt(dossier, blockRead.source);
+    const receiptHashSha256 = await sha256Canonical(receipt);
+    return NextResponse.json({ ...dossier, receipt, receiptHashSha256 }, { headers: baseHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Public BSC evidence was unavailable";
-    return NextResponse.json({
+    const dossier = {
       status: "INSUFFICIENT EVIDENCE", requestId, observedAt, mode: "READ_ONLY", transactions: 0,
       input: { asset: GUARDIAN_ASSET.id, amountUsdt: validation.amount, network: "BNB Smart Chain Mainnet", chainId: GUARDIAN_CHAIN_ID },
       routes: [], notChecked: ["Route identity", "Request-time reserves", "Price impact", "Other routes", "Gas estimate"],
       explanation: { generator: "DETERMINISTIC_EVIDENCE_EXPLAINER", text: explainGuardianDecision("INSUFFICIENT EVIDENCE", null, validation.amount) },
       error: message, warnings: ["No cached or simulated fallback was used.", "No transaction was requested or produced."],
-    }, { status: 503, headers: baseHeaders });
+    };
+    const receipt = buildGuardianReceipt(dossier);
+    const receiptHashSha256 = await sha256Canonical(receipt);
+    return NextResponse.json({ ...dossier, receipt, receiptHashSha256 }, { status: 503, headers: baseHeaders });
   }
 }
