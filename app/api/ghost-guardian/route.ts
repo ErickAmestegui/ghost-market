@@ -31,10 +31,18 @@ export async function POST(request: NextRequest) {
   const observedAt = new Date().toISOString();
   const baseHeaders = { "cache-control": "no-store", "x-ghost-request-id": requestId };
   let input: unknown;
-  try { input = await request.json(); } catch { return NextResponse.json({ status: "INSUFFICIENT EVIDENCE", error: "Request body must be valid JSON.", requestId }, { status: 400, headers: baseHeaders }); }
+  try { input = await request.json(); } catch { return NextResponse.json({ status: "INVALID INPUT", statusEs: "ENTRADA NO VÁLIDA", error: "Request body must be valid JSON.", requestId, mode: "READ_ONLY", transactions: 0, routes: [], verification: { blockchainInvestigation: "NOT PERFORMED", contract: "NOT VERIFIED", block: "NOT VERIFIED", observation: "NOT VERIFIED" } }, { status: 400, headers: baseHeaders }); }
   const body = input as { asset?: unknown; amountUsdt?: unknown };
   const validation = validateGuardianInput(body.asset, body.amountUsdt);
-  if (!validation.ok) return NextResponse.json({ status: "INSUFFICIENT EVIDENCE", error: validation.error, requestId }, { status: 400, headers: baseHeaders });
+  if (!validation.ok) return NextResponse.json({
+    status: "INVALID INPUT", statusEs: "ENTRADA NO VÁLIDA", error: validation.error, requestId,
+    mode: "READ_ONLY", transactions: 0,
+    input: { asset: body.asset ?? "NOT VALIDATED", amountUsdt: body.amountUsdt ?? "NOT VALIDATED", network: "BNB Smart Chain Mainnet", chainId: GUARDIAN_CHAIN_ID },
+    routes: [],
+    verification: { blockchainInvestigation: "NOT PERFORMED", contract: "NOT VERIFIED", block: "NOT VERIFIED", observation: "NOT VERIFIED" },
+    notChecked: ["Route identity", "Request-time reserves", "Price impact", "Other routes", "Gas estimate"],
+    warnings: ["Invalid input stopped the workflow before any blockchain investigation.", "No transaction was requested or produced."],
+  }, { status: 400, headers: baseHeaders });
 
   try {
     const chain = await rpc<string>("eth_chainId", [], requestId);

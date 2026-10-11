@@ -5,7 +5,7 @@ Ghost Market answers one question: **when Wall Street is closed, what does an in
 It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
 - [Public deployment](https://ghost-market-beta.lorgiogc.chatgpt.site/)
-- **[Judge Quickstart — evaluate Ghost Market in under 3 minutes](docs/JUDGE_QUICKSTART.md)**
+- **[The Evidence Room — evaluate the core case in about 90 seconds](docs/JUDGE_QUICKSTART.md)**
 - [Official BNB Hack demo video](https://www.youtube.com/watch?v=puRMv_Wu2WA)
 
 ## Guided experience
@@ -20,10 +20,14 @@ Beta 0.9 is organized as a calm, mobile-first learning journey instead of a dens
 - resilient `UNAVAILABLE` states when a live provider is incomplete or unreachable.
 - Ghost Guardian 2.0: a public, request-time, read-only investigation of the single verified PancakeSwap V2 AAPLon/USDT route for a bounded hypothetical input.
 - Ghost Investigation Receipt: canonical JSON with a reproducible SHA-256 integrity hash, downloadable or printable without a wallet.
+- an evidence-led homepage with immediate Guardian, Historical Replay and Judge Mode entry points;
+- Historical Replay of two authentic saved receipts, verified in-browser and compared without fabricating snapshots.
 
 ## Ghost Guardian 2.0
 
-`Investigate Route` reads BNB Smart Chain at one block, verifies the AAPLon contract and PancakeSwap V2 pair through the factory, reads request-time reserves, and estimates constant-product execution impact with an explicit 0.25% fee assumption. It returns only `REJECTED`, `INSUFFICIENT EVIDENCE`, or `CANDIDATE FOR FURTHER REVIEW`.
+`Investigate Route` reads BNB Smart Chain at one block, verifies the AAPLon contract and PancakeSwap V2 pair through the factory, reads request-time reserves, and estimates constant-product execution impact with an explicit 0.25% fee assumption. Valid investigations return `REJECTED`, `INSUFFICIENT EVIDENCE`, or `CANDIDATE FOR FURTHER REVIEW`. Validation failures return `INVALID INPUT` before any blockchain investigation and keep contract, block and observation fields explicitly unverified.
+
+The public API is `POST /api/ghost-guardian` with JSON `{ "asset": "AAPLon", "amountUsdt": 6 }`. The amount is bounded to `0.1–25` USDT. A reusable client is packaged at `skills/ghost-guardian`; run `node skills/ghost-guardian/scripts/invoke.mjs --amount 6` from the repository root.
 
 The public runtime never requests a wallet and contains no trading, approval, signing, transfer or payment path. Unchecked DEX routes, an Agentic Wallet executable quote route, gas, transfer restrictions and independent reference-price freshness remain `NOT CHECKED`. The “Why this result?” explanation is a deterministic rendering of the verified dossier, explicitly not a simulated LLM call.
 
@@ -64,6 +68,7 @@ Ghost Brain, Ghost Council, Ghost Score, Ghost Consensus, Market Constellation, 
 | LIVE | Read during the request from a verifiable source |
 | CACHED | Real provider data without request-time freshness proof |
 | REJECTED | Real observation that failed market-quality controls |
+| INVALID INPUT | Request rejected before any blockchain investigation |
 | UNAVAILABLE | Required source, credential, pool or value is missing |
 | SIMULATED | Versioned deterministic fixture |
 | LOCAL VERIFIED | Reproduced in a private local lab; not evidence of public runtime behavior |
@@ -142,7 +147,9 @@ Recommended functional checks:
 3. Confirm weak/absent PancakeSwap markets are rejected, not scored as live prices.
 4. Confirm missing Binance credentials never become LIVE.
 5. Switch to DETERMINISTIC DEMO and test Simple/Pro, EN/ES, Research, scenarios, Break the Consensus, replay and The Morning After.
-6. Test 320, 375, 390, 768 px and desktop without horizontal scroll.
+6. Open Historical Replay and confirm `2 / 2 VERIFIED` plus `NO OBSERVED CHANGE`.
+7. Open The Evidence Room and follow the seven-step judge path.
+8. Test 320, 375, 390, 768 px and desktop without horizontal scroll.
 
 ## Technical documentation
 

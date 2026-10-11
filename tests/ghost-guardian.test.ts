@@ -5,10 +5,18 @@ import { buildGuardianReceipt, canonicalJson, sha256Canonical } from "../lib/gho
 
 test("accepts only the bounded AAPLon research request", () => {
   assert.deepEqual(validateGuardianInput("AAPLon", 6), { ok: true, amount: 6 });
+  assert.deepEqual(validateGuardianInput("AAPLon", 0.1), { ok: true, amount: 0.1 });
+  assert.deepEqual(validateGuardianInput("AAPLon", 25), { ok: true, amount: 25 });
   assert.equal(validateGuardianInput("AAPLx", 6).ok, false);
-  assert.equal(validateGuardianInput("AAPLon", 0).ok, false);
-  assert.equal(validateGuardianInput("AAPLon", 25.1).ok, false);
+  assert.equal(validateGuardianInput("AAPLon", 0.09).ok, false);
+  assert.equal(validateGuardianInput("AAPLon", 25.01).ok, false);
   assert.equal(validateGuardianInput("AAPLon", "not-a-number").ok, false);
+});
+
+test("invalid input is distinct from an evidence determination", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../app/api/ghost-guardian/route.ts", import.meta.url), "utf8"));
+  assert.match(source, /status: "INVALID INPUT"/);
+  assert.match(source, /blockchainInvestigation: "NOT PERFORMED"/);
 });
 
 test("constant-product impact rises as input consumes more of the pool", () => {

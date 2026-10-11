@@ -5,7 +5,8 @@ import { Blocks, CircleAlert, Download, ExternalLink, FileSearch, Fingerprint, L
 import type { Locale } from "@/data/types";
 
 type Report = {
-  status: "REJECTED" | "INSUFFICIENT EVIDENCE" | "CANDIDATE FOR FURTHER REVIEW";
+  status: "REJECTED" | "INSUFFICIENT EVIDENCE" | "CANDIDATE FOR FURTHER REVIEW" | "INVALID INPUT";
+  statusEs?: string;
   requestId?: string; observedAt?: string; mode?: string; transactions?: number; error?: string;
   input?: { asset: string; amountUsdt: number; network: string; chainId: number };
   identity?: { ticker: string; tokenSymbol: string; tokenContract: string; bytecodePresent: boolean };
@@ -54,7 +55,7 @@ export function GhostGuardian({ locale, displayMode }: { locale: Locale; display
   };
 
   const route = report?.routes?.[0];
-  const tone = report?.status === "REJECTED" ? "rejected" : report?.status === "CANDIDATE FOR FURTHER REVIEW" ? "review" : "insufficient";
+  const tone = report?.status === "REJECTED" ? "rejected" : report?.status === "CANDIDATE FOR FURTHER REVIEW" ? "review" : report?.status === "INVALID INPUT" ? "invalid" : "insufficient";
   const downloadReceipt = () => {
     if (!report?.receipt || !report.receiptHashSha256) return;
     const payload = JSON.stringify({ receipt: report.receipt, receiptHashSha256: report.receiptHashSha256 }, null, 2);
@@ -72,7 +73,7 @@ export function GhostGuardian({ locale, displayMode }: { locale: Locale; display
     <div className="guardian-safety"><ShieldCheck />{tx(locale, "No order · no approval · no signature · no transfer · no transaction", "Sin orden · sin aprobación · sin firma · sin transferencia · sin transacción")}</div>
 
     {report && <div className="guardian-report">
-      <header className={`guardian-verdict ${tone}`}><div><span>{tx(locale, "AUDITABLE RESULT", "RESULTADO AUDITABLE")}</span><h2>{report.status}</h2><p>{report.error ?? tx(locale, "Applies only to the route and input shown below.", "Aplica solo a la ruta y entrada mostradas abajo.")}</p></div>{report.status === "REJECTED" ? <TriangleAlert /> : report.status === "CANDIDATE FOR FURTHER REVIEW" ? <FileSearch /> : <CircleAlert />}</header>
+      <header className={`guardian-verdict ${tone}`}><div><span>{report.status === "INVALID INPUT" ? tx(locale, "REQUEST STOPPED", "SOLICITUD DETENIDA") : tx(locale, "AUDITABLE RESULT", "RESULTADO AUDITABLE")}</span><h2>{locale === "es" && report.status === "INVALID INPUT" ? report.statusEs : report.status}</h2><p>{report.error ?? tx(locale, "Applies only to the route and input shown below.", "Aplica solo a la ruta y entrada mostradas abajo.")}</p></div>{report.status === "REJECTED" || report.status === "INVALID INPUT" ? <TriangleAlert /> : report.status === "CANDIDATE FOR FURTHER REVIEW" ? <FileSearch /> : <CircleAlert />}</header>
       {route && <div className="guardian-metrics"><article><span>{tx(locale, "Verified pool", "Pool verificada")}</span><strong>{tx(locale, route.route, "PancakeSwap V2 · ruta directa AAPLon/USDT")}</strong><small>{route.pairVerifiedByFactory ? tx(locale, "Factory match confirmed", "Coincidencia con factory confirmada") : "—"}</small></article><article><span>{tx(locale, "Request-time reserves", "Reservas en la solicitud")}</span><strong>{fmt(route.reserves.counter, 2)} {route.reserves.counterSymbol}</strong><small>{fmt(route.reserves.token, 6)} {route.reserves.tokenSymbol}</small></article><article><span>{tx(locale, "Estimated output", "Salida estimada")}</span><strong>{fmt(route.estimate.outputToken, 8)} AAPLon</strong><small>{fmt(route.estimate.executionPriceUsdt, 4)} USDT / token</small></article><article><span>{tx(locale, "Estimated impact", "Impacto estimado")}</span><strong>{fmt(route.estimate.priceImpactPercent, 2)}%</strong><small>{tx(locale, "Includes assumed 0.25% V2 fee", "Incluye fee V2 supuesto de 0,25%")}</small></article></div>}
       <div className="guardian-evidence-grid"><article><header><Blocks />{tx(locale, "Verified evidence", "Evidencia verificada")}</header><dl><div><dt>{tx(locale, "Network", "Red")}</dt><dd>{tx(locale, report.input?.network ?? "—", "BNB Smart Chain Mainnet")} · {report.input?.chainId ?? 56}</dd></div><div><dt>{tx(locale, "Contract", "Contrato")}</dt><dd>{report.identity?.tokenContract ?? tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div><div><dt>Block</dt><dd>{report.freshness?.blockNumber?.toLocaleString() ?? tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div><div><dt>{tx(locale, "Block time", "Hora de bloque")}</dt><dd>{report.freshness?.blockTime ? new Date(report.freshness.blockTime).toLocaleString(locale === "en" ? "en-US" : "es-BO") : tx(locale, "NOT VERIFIED", "NO VERIFICADO")}</dd></div></dl></article><article className="not-checked"><header><CircleAlert />NOT CHECKED</header>{(report.notChecked ?? []).map((item) => <p key={item}>{locale === "es" ? notCheckedEs[item] ?? item : item}</p>)}</article></div>
       <button className="guardian-why" onClick={() => setShowWhy((value) => !value)}><FileSearch /><span><b>{tx(locale, "Why this result?", "¿Por qué este resultado?")}</b><small>{tx(locale, "Generate an explanation strictly from the verified dossier", "Generar una explicación solo desde el expediente verificado")}</small></span></button>

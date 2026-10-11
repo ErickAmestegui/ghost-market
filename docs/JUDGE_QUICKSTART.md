@@ -1,37 +1,35 @@
-# Ghost Market — Judge Quickstart (under 3 minutes)
+# Ghost Market — The Evidence Room (about 90 seconds)
 
 **Value in one line:** Ghost Market is evidence-first market intelligence—an AI-assisted workflow that does not invent routes or trades when evidence is missing.
 
 Public product: <https://ghost-market-beta.lorgiogc.chatgpt.site/>  
 Video demo: <https://www.youtube.com/watch?v=puRMv_Wu2WA>
 
-## 0:00–0:40 — Verify the evidence boundary
+## 0:00–0:20 — Enter The Evidence Room
 
 1. Open the [public Ghost Market Beta 0.9](https://ghost-market-beta.lorgiogc.chatgpt.site/).
-2. In **Live Evidence**, inspect the badges and source links.
-3. Read `LIVE` as request-time evidence and `CACHED` as real provider data without enough source-time proof. `SIMULATED` sections are deterministic demos and are never presented as live market evidence.
+2. Select **THE EVIDENCE ROOM** from the homepage or navigation.
+3. Read the case boundary: one AAPLon/USDT route, a hypothetical 6 USDT input and zero transactions.
 
-## 0:40–1:10 — Check the read-only wallet lens
+## 0:20–0:55 — Inspect the authentic finding
 
-1. Open **Wallet Lens**.
-2. Either connect an EIP-1193 BSC wallet voluntarily or paste any valid BSC public address under **Investigate without a wallet**. The address may have a zero balance; no funds are required.
-3. Confirm the visible boundary: public account/balance reads only—no signature, token approval, seed phrase or transaction. A connected account proves only that the wallet exposed a public address; it does not prove that a market is safe.
+1. Open **Guardian** from step 3.
+2. Run the bounded `6` USDT request or inspect the saved finding.
+3. Confirm `REJECTED`, approximately `88.18%` estimated impact, the checked pool, block, sources, unchecked fields and zero transactions.
 
-## 1:10–1:35 — Follow attributed context
+## 0:55–1:15 — Verify historical memory
 
-1. Open **Social Pulse** and select an asset.
-2. Follow an accepted official-news item back to the issuer source, or observe the explicit `UNAVAILABLE` state when no stable feed exists.
-3. Confirm that issuer news and external social links are attributed context only: they do not change Ghost Score and do not replace contract, liquidity or execution evidence.
+1. Open **Replay**.
+2. Confirm both source files report `SHA-256 VERIFIED`.
+3. Confirm the chronological comparison reports `NO OBSERVED CHANGE` for reserves, impact and decision between blocks `126,952,690` and `126,960,194`.
 
-## 1:35–2:30 — Reproduce the Guardian decision
+## 1:15–1:30 — Check agent and honesty boundaries
 
-1. Return to **Live Evidence** and find **Ghost Guardian 2.0**.
-2. Keep `AAPLon` selected, enter `6` USDT and click **Investigate Route**.
-3. Inspect the block-tagged dossier. The expected route-scoped result is `REJECTED` for the factory-verified PancakeSwap V2 AAPLon/USDT pool because the observed liquidity and estimated impact fail the experimental controls. The exact block and values are request-time observations and may change.
-4. Confirm the limits remain visible: other routes, Agentic Wallet route attribution, gas, transfer restrictions/taxes and independent reference-price freshness are `NOT CHECKED` where evidence is absent.
-5. Download the **Ghost Investigation Receipt** JSON or use **Print receipt**. Its canonical SHA-256 is reproducible from the receipt content and detects changes; it is not a signature, certification or safe-to-trade claim.
+1. Confirm the public endpoint and packaged Skill are read-only and preserve unchecked fields.
+2. Confirm the page does not claim a public MCP server or autonomous trading agent.
+3. Treat the SHA-256 as change detection, not a signature, attestation or safety claim.
 
-## 2:30–3:00 — Inspect integration evidence
+## Optional technical evidence
 
 - [Judge integration evidence](JUDGE_INTEGRATION_EVIDENCE.md): sanitized, reproducible records for the Binance Wallet Skill, local Binance Agentic Wallet quote/risk gate, public Guardian and local Agent Studio harness.
 - [BNB Agent Studio Nightwatch evidence](BNB_AGENT_STUDIO_NIGHTWATCH_EVIDENCE.md): a real Pieverse `auto/free` model → `ghost_guardian_investigate_route` tool → public Guardian endpoint → BSC run. **Exact boundary: `LOCAL VERIFIED / NOT PUBLICLY DEPLOYED`.** The final neutral-prose retest remained `PENDING` after Pieverse returned `Too Many Requests`; it is not claimed as passed.

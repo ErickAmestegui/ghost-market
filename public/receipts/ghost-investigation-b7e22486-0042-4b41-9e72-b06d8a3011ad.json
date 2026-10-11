@@ -1,0 +1,42 @@
+{
+  "receipt": {
+    "schemaVersion": "ghost-investigation-receipt/1.0",
+    "canonicalization": "JSON keys sorted recursively; UTF-8; no whitespace",
+    "integrityClaim": "SHA-256 detects dossier changes. It is not a signature, attestation, or safe-to-trade claim.",
+    "generatedBy": { "product": "Ghost Guardian 2.0", "algorithmVersion": "ghost-guardian-route-research/2.1", "execution": "PUBLIC_RUNTIME_READ_ONLY" },
+    "toolInvocations": [
+      { "tool": "BNB_CHAIN_JSON_RPC", "methods": ["eth_chainId", "eth_blockNumber", "eth_getBlockByNumber", "eth_getCode", "eth_call"], "publicParameters": { "endpoint": "https://bsc-dataseed.bnbchain.org", "chainId": 56, "blockNumber": 126960194 } },
+      { "tool": "PANCAKESWAP_V2_FACTORY_AND_PAIR", "methods": ["getPair", "token0", "token1", "getReserves"], "publicParameters": { "asset": "AAPLon", "hypotheticalAmountUsdt": 6 } }
+    ],
+    "dossier": {
+      "status": "REJECTED",
+      "requestId": "b7e22486-0042-4b41-9e72-b06d8a3011ad",
+      "observedAt": "2026-10-11T05:01:52.003Z",
+      "mode": "READ_ONLY",
+      "transactions": 0,
+      "input": { "asset": "AAPLon", "amountUsdt": 6, "network": "BNB Smart Chain Mainnet", "chainId": 56 },
+      "identity": { "ticker": "AAPL", "tokenSymbol": "AAPLon", "tokenContract": "0x390a684ef9cade28a7ad0dfa61ab1eb3842618c4", "bytecodePresent": true },
+      "freshness": { "blockNumber": 126960194, "blockTime": "2026-10-11T05:01:52.000Z", "ghostObservedAt": "2026-10-11T05:01:52.003Z", "source": "https://bsc-dataseed.bnbchain.org" },
+      "routes": [{
+        "route": "PancakeSwap V2 · direct AAPLon/USDT",
+        "pair": "0xe545e390d757f7071b48d3bea88c912df497c3ee",
+        "factory": "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
+        "pairVerifiedByFactory": true,
+        "reserves": { "token": 0.002297127143665824, "tokenSymbol": "AAPLon", "counter": 0.804226375095215, "counterSymbol": "USDT" },
+        "estimate": { "outputToken": 0.002025018049961126, "executionPriceUsdt": 2962.9365526471142, "priceImpactPercent": 88.18398791208038, "assumedFeePercent": 0.25 },
+        "decision": "REJECTED"
+      }],
+      "notChecked": ["Other DEX pools or multi-hop routes", "Aggregator / Agentic Wallet executable quote route", "Gas estimate", "Token transfer taxes or restrictions", "Independent reference-price freshness"],
+      "threshold": { "maxPriceImpactPercent": 5, "experimental": true },
+      "explanation": { "generator": "DETERMINISTIC_EVIDENCE_EXPLAINER", "text": "This single PancakeSwap V2 AAPLon/USDT route was rejected because the verified pool reserves imply 88.18% execution impact for a hypothetical 6 USDT input, above Ghost Guardian's experimental 5% review threshold. The finding does not apply to routes that were not checked." },
+      "sources": [
+        { "label": "BNB Chain public JSON-RPC", "url": "https://bsc-dataseed.bnbchain.org" },
+        { "label": "AAPLon contract", "url": "https://bscscan.com/address/0x390a684ef9cade28a7ad0dfa61ab1eb3842618c4" },
+        { "label": "PancakeSwap V2 pair", "url": "https://bscscan.com/address/0xe545e390d757f7071b48d3bea88c912df497c3ee" },
+        { "label": "Observed block", "url": "https://bscscan.com/block/126960194" }
+      ],
+      "warnings": ["Research result only. Never a safe-to-trade conclusion.", "No order, approval, signature, transfer or transaction was requested or produced."]
+    }
+  },
+  "receiptHashSha256": "4b781438b91005489bf09a8e47cea1cc931b754a70f19ca0f96c3428ff08da00"
+}

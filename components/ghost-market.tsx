@@ -23,11 +23,14 @@ import { ModuleErrorBoundary } from "@/components/module-error-boundary";
 import { WalletLens } from "@/ui/wallet-lens";
 import { SocialPulse } from "@/ui/social-pulse";
 import { GhostGuardian } from "@/ui/ghost-guardian";
+import { HomeExperience } from "@/ui/home-experience";
+import { HistoricalReplay } from "@/ui/historical-replay";
+import { EvidenceRoom } from "@/ui/evidence-room";
 
-type Section = "home" | "live" | "lens" | "guardian" | "pulse" | "demo" | "learn" | "about";
+type Section = "home" | "live" | "lens" | "guardian" | "pulse" | "replay" | "judge" | "demo" | "learn" | "about";
 type DisplayMode = "simple" | "pro";
 type DemoPanel = "brain" | "council" | "scenarios" | "research" | "pulse";
-type DataState = "LIVE" | "CACHED" | "REJECTED" | "UNAVAILABLE" | "ERROR" | "SIMULATED" | "LOADING";
+type DataState = "LIVE" | "CACHED" | "REJECTED" | "UNAVAILABLE" | "ERROR" | "SIMULATED" | "DEMO" | "LOADING";
 
 const ASSETS: Array<{ symbol: SymbolKey; token: string; company: string; note: { en: string; es: string } }> = [
   { symbol: "AAPL", token: "AAPLx", company: "Apple", note: { en: "Official xStocks deployment on BSC", es: "Despliegue oficial de xStocks en BSC" } },
@@ -41,6 +44,8 @@ const NAV: Array<{ id: Section; icon: typeof Home; en: string; es: string }> = [
   { id: "lens", icon: Radar, en: "Wallet Lens", es: "Wallet Lens" },
   { id: "guardian", icon: ShieldCheck, en: "Guardian", es: "Guardian" },
   { id: "pulse", icon: RadioTower, en: "Social Pulse", es: "Social Pulse" },
+  { id: "replay", icon: RefreshCw, en: "Replay", es: "Replay" },
+  { id: "judge", icon: Search, en: "Evidence Room", es: "Evidence Room" },
   { id: "demo", icon: PlayCircle, en: "Demo", es: "Demo" },
   { id: "learn", icon: BookOpen, en: "Learn", es: "Aprender" },
   { id: "about", icon: Info, en: "About", es: "Acerca de" },
@@ -90,11 +95,13 @@ export default function GhostMarket() {
     <Header section={section} locale={locale} displayMode={displayMode} calmMode={calmMode} onNavigate={navigate} onLocale={changeLocale} onMode={changeMode} onCalm={changeCalm} />
     <ComprehensionProgress locale={locale} section={section} liveStep={liveStep} demoChapter={demoChapter} />
     <div className="mode-brief" role="status"><SlidersHorizontal /><span>{displayMode === "simple" ? t(locale, "SIMPLE · Guided essentials; every risk remains visible", "SIMPLE · Esenciales guiados; todos los riesgos siguen visibles") : t(locale, "PRO · Full sources, request IDs and quality gates", "PRO · Fuentes, request IDs y controles de calidad completos")}</span></div>
-    {section === "home" && <Welcome locale={locale} loading={loading} live={live} evidenceStatus={evidence?.status} onStart={() => { setLiveStep(0); navigate("live"); }} onTechnical={() => { changeMode("pro"); setLiveStep(1); navigate("live"); }} />}
+    {section === "home" && <HomeExperience locale={locale} onInvestigate={() => navigate("guardian")} onReplay={() => navigate("replay")} onJudge={() => navigate("judge")} />}
     {section === "live" && <LiveJourney locale={locale} displayMode={displayMode} step={liveStep} symbol={symbol} loading={loading} evidence={evidence} binance={binance} rwa={rwa} walletSkill={walletSkill} live={live} onStep={setLiveStep} onSelect={chooseAsset} onReload={reload} onDemo={startDemo} />}
     {section === "lens" && <WalletLens locale={locale} onInvestigate={() => { setLiveStep(1); navigate("live"); }} />}
     {section === "guardian" && <GhostGuardian locale={locale} displayMode={displayMode} />}
     {section === "pulse" && <SocialPulse locale={locale} symbol={symbol} displayMode={displayMode} onSymbol={setSymbol} onInvestigate={() => { setLiveStep(1); navigate("live"); }} />}
+    {section === "replay" && <HistoricalReplay locale={locale} onInvestigate={() => navigate("guardian")} onJudge={() => navigate("judge")} />}
+    {section === "judge" && <EvidenceRoom locale={locale} onGuardian={() => navigate("guardian")} onReplay={() => navigate("replay")} onExit={() => navigate("home")} />}
     {section === "demo" && <DemoJourney locale={locale} displayMode={displayMode} symbol={symbol} walletSkill={walletSkill} consent={demoConsent} chapter={demoChapter} panel={demoPanel} breakPhase={breakPhase} calmMode={calmMode} onConsent={() => setDemoConsent(true)} onChapter={(next) => { setDemoChapter(next); if (next < 4) setBreakPhase(0); }} onPanel={setDemoPanel} onBreak={() => { if (breakTimer.current) clearTimeout(breakTimer.current); setBreakPhase(1); if (calmMode) setBreakPhase(2); else breakTimer.current = setTimeout(() => setBreakPhase(2), 1100); }} onSelectSymbol={setSymbol} onExit={() => navigate("live")} />}
     {section === "learn" && <Learn locale={locale} />}
     {section === "about" && <About locale={locale} binance={binance} rwa={rwa} />}
@@ -110,14 +117,8 @@ function Header({ section, locale, displayMode, calmMode, onNavigate, onLocale, 
 
 function ComprehensionProgress({ locale, section, liveStep, demoChapter }: { locale: Locale; section: Section; liveStep: number; demoChapter: number }) {
   const labels = locale === "en" ? ["Tonight", "Evidence", "Market", "Analysis", "Replay"] : ["Esta noche", "Evidencia", "Mercado", "Análisis", "Replay"];
-  const active = section === "home" ? 0 : section === "live" ? Math.min(3, liveStep) : section === "lens" || section === "guardian" || section === "pulse" ? 3 : section === "demo" ? Math.min(4, 3 + Math.ceil((demoChapter + 1) / 8)) : 0;
+  const active = section === "home" ? 0 : section === "live" ? Math.min(3, liveStep) : section === "lens" || section === "guardian" || section === "pulse" ? 3 : section === "replay" || section === "judge" ? 4 : section === "demo" ? Math.min(4, 3 + Math.ceil((demoChapter + 1) / 8)) : 0;
   return <div className="journey-progress" aria-label={t(locale, "Understanding progress", "Progreso de comprensión")}><div className="journey-track"><span style={{ width: `${active / 4 * 100}%` }} /></div>{labels.map((label, index) => <div key={label} className={index <= active ? "reached" : ""}><i>{index < active ? <Check /> : index + 1}</i><span>{label}</span></div>)}</div>;
-}
-
-function Welcome({ locale, loading, live, evidenceStatus, onStart, onTechnical }: { locale: Locale; loading: boolean; live: ReturnType<typeof useIntegrationEvidence>["live"]; evidenceStatus?: string; onStart: () => void; onTechnical: () => void }) {
-  const verified = live?.registry?.status === "LIVE" && (evidenceStatus === "LIVE" || live.verification?.some((item) => item.label === "CONTRACT EXISTS" && item.status === "LIVE"));
-  const marketStatus = loading ? t(locale, "Checking current session…", "Comprobando sesión actual…") : live?.market?.normalizedStatus ?? "UNKNOWN";
-  return <section className="welcome-screen page-shell"><div className="welcome-copy"><StatusBadge status={loading ? "LOADING" : verified ? "LIVE" : "UNAVAILABLE"} label={loading ? t(locale, "Checking BSC", "Revisando BSC") : verified ? "BSC Mainnet · Chain 56" : t(locale, "BSC check unavailable", "Comprobación BSC no disponible")} /><p className="eyebrow">WALL STREET SLEEPS. THE MARKET DOESN&apos;T.</p><h1>{t(locale, "Wall Street closed. Ghost kept watching.", "Wall Street cerró. Ghost siguió observando.")}</h1><p className="hero-context"><span>{t(locale, "PRODUCT STORY", "HISTORIA DEL PRODUCTO")}</span>{t(locale, "Built for the hours when the traditional reference stops updating.", "Diseñado para las horas en que la referencia tradicional deja de actualizarse.")} <b>{t(locale, "Current market state", "Estado actual del mercado")}: {marketStatus}</b></p><p className="lead">{t(locale, "Ghost verifies tokenized-stock provenance, then rejects prices from markets too weak to trust. Every real, cached, rejected and simulated result is labeled.", "Ghost verifica la procedencia de acciones tokenizadas y rechaza precios de mercados demasiado débiles para confiar. Cada resultado real, en caché, rechazado o simulado está etiquetado.")}</p><button className="primary-action" onClick={onStart}>{t(locale, "Start the verified check", "Iniciar comprobación verificada")}<ArrowRight /></button><button className="quiet-action" onClick={onTechnical}>{t(locale, "Review the evidence step", "Revisar el paso de evidencia")}</button><p className="safety-note"><ShieldCheck />{t(locale, "Wallet use is optional and read-only. No trades or investment recommendations.", "La wallet es opcional y de solo lectura. Sin operaciones ni recomendaciones de inversión.")}</p></div><Companion locale={locale} mood="listening" /></section>;
 }
 
 function Companion({ locale, mood }: { locale: Locale; mood: "listening" | "checking" | "caution" | "complete" }) {
