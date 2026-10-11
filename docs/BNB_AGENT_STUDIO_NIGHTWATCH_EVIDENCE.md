@@ -25,6 +25,8 @@ TRANSACTIONS: 0
 FINAL SCOPE: one factory-verified PancakeSwap V2 AAPLon/USDT route; other routes, gas, transfer restrictions and independent reference-price freshness remained NOT CHECKED.
 ```
 
-The first two successful model runs did invoke the required tool. Their prose layer also used qualitative language stronger than the raw dossier. That prose is not accepted as public evidence. The harness was therefore tightened to remove provider reasoning tags from the public transcript and fail on advice/safety/loss language. A subsequent retry reached the provider's `Too Many Requests` limit, so the stricter prose gate is **SOURCE IMPLEMENTED, RETEST PENDING**. The tool invocation itself remains directly observed and locally verified.
+The first two successful model runs did invoke the required tool. Their prose layer also used qualitative language stronger than the raw dossier. That prose is not accepted as public evidence. The harness was therefore tightened to remove provider reasoning tags from the public transcript and fail on advice/safety/loss language.
+
+The final authorized retest on 2026-10-10 (Bolivia time) ran the existing `auto/free` harness exactly once. The provider returned `Too Many Requests` after the runtime's built-in three attempts, before a new report could be accepted. No second execution or rate-limit workaround was attempted. The stricter prose gate therefore remains **SOURCE IMPLEMENTED, RETEST PENDING**—not passed. The earlier tool invocation remains directly observed and locally verified.
 
 No `.studio` directory, environment file, wallet store, session, key, address or balance was copied into the repository. The test loads its existing local model configuration without logging values.
