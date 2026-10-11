@@ -77,7 +77,7 @@ The separate local workspace was scaffolded with BNB Agent Studio and configured
 
 The local harness observed one real model tool call. The returned dossier was route-scoped and included the public request ID, BSC block, `NOT CHECKED` items and zero transactions. The deterministic public UI remains the authoritative explanation layer; model prose is not silently presented as verified evidence.
 
-The model test was rerun. Two calls successfully selected the public Guardian tool; the harness was then tightened after qualitative wording exceeded the raw dossier. The next stricter retry was rate-limited by the provider and is recorded as pending, not passed. The agent was not deployed and no paid route was exercised. See [BNB Agent Studio Nightwatch evidence](BNB_AGENT_STUDIO_NIGHTWATCH_EVIDENCE.md).
+The model test was rerun. Two calls successfully selected the public Guardian tool; the harness was then tightened after qualitative wording exceeded the raw dossier. In the final authorized retest on 2026-10-10 (Bolivia time), the existing `auto/free` harness was executed once and Pieverse returned `Too Many Requests` after the runtime's built-in three attempts. No second execution or workaround was attempted. The stricter neutral-prose result remains pending, not passed. The agent was not deployed and no paid route was exercised. See [BNB Agent Studio Nightwatch evidence](BNB_AGENT_STUDIO_NIGHTWATCH_EVIDENCE.md).
 
 ## Security and reproducibility controls
 

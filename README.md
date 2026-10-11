@@ -5,6 +5,7 @@ Ghost Market answers one question: **when Wall Street is closed, what does an in
 It is market-intelligence software, not a trading app, price forecast or investment recommendation.
 
 - [Public deployment](https://ghost-market-beta.lorgiogc.chatgpt.site/)
+- **[Judge Quickstart — evaluate Ghost Market in under 3 minutes](docs/JUDGE_QUICKSTART.md)**
 - [Official BNB Hack demo video](https://www.youtube.com/watch?v=puRMv_Wu2WA)
 
 ## Guided experience
@@ -167,7 +168,8 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - [x] Contract bytecode, symbol and block evidence are read from BSC mainnet.
 - [x] Weak/absent PancakeSwap markets are rejected at fixed thresholds.
 - [x] Session status is normalized; the live gap is paused during `OPEN`.
-- [x] Wallet/agent/transaction features are explicitly `NOT IMPLEMENTED`.
+- [x] Wallet Lens supports a voluntary EIP-1193 connection or any BSC public address in read-only mode; it requests no signature, approval or transaction.
+- [x] BNB Agent Studio and Binance Agentic Wallet evidence is local-only; no autonomous agent is publicly deployed and no transaction was executed.
 - [x] Binance credentials remain server-only and failures are isolated.
 - [x] Authenticated Binance Stocks transport success — HTTP 200 verified for AAPL, NVDA and TSLA; price freshness remains CACHED.
 - [ ] Usable Binance Web3 response — signed requests currently return business code `40304`.
@@ -181,7 +183,8 @@ Run `node scripts/audit-candidate-markets.mjs` to inspect official SPYx and QQQx
 - Production Binance credential names are configured as server-only Sites secrets; their values are hidden and never returned to the browser.
 - Binance Web3 currently returns HTTP 200 with business code `40304` (`Service not available due to compliance restriction`) for both RWA Platforms and Market Supported Chains. Ghost Market exposes this as an error and makes no LIVE claim.
 - The observed AAPLx and TSLAx PancakeSwap V2 pools are below the acceptance threshold; NVDAx has no verified V2 USDT pair. The live gap therefore remains incomplete.
-- No connected wallet, transaction, ERC-8004 identity or persistent agent is implemented. The Binance Wallet Skill integration is read-only and creates no signatures or transactions.
+- Public Wallet Lens can connect to an EIP-1193 wallet or inspect a supplied BSC public address in read-only mode. It requests no signature, approval or transaction, and the inspected address does not need funds.
+- The Binance Agentic Wallet CLI and BNB Agent Studio harness were verified only in separate local labs. No autonomous agent, transaction flow, ERC-8004 identity or persistent agent is publicly deployed.
 - The GitHub repository is public at <https://github.com/ErickAmestegui/ghost-market>. Every future publication or deployment still requires a fresh secret review.
 
 ## Safety
