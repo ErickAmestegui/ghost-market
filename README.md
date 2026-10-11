@@ -29,10 +29,6 @@ The public runtime never requests a wallet and contains no trading, approval, si
 
 Each completed investigation also returns a canonical receipt containing the route-scoped dossier, source/tool list, public parameters, algorithm version and limitations. Its SHA-256 hash detects changes to that JSON; it is not a signature, attestation or safe-to-trade claim. A BNB Agent Studio adapter and sanitized local model-to-tool evidence are documented in [Ghost Nightwatch evidence](docs/BNB_AGENT_STUDIO_NIGHTWATCH_EVIDENCE.md). The model harness remains `LOCAL VERIFIED / NOT PUBLICLY DEPLOYED`.
 
-![Ghost Market desktop](docs/screenshots/ghost-market-desktop.png)
-
-![Ghost Market mobile](docs/screenshots/ghost-market-mobile.png)
-
 ## Why BNB Chain
 
 The selected xStocks exist as BEP-20 contracts on BNB Smart Chain, where contracts, pools, reserves and blocks can be inspected without trusting the interface. Ghost Market uses that transparency to separate four questions that dashboards often collapse into one:
