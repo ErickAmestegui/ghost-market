@@ -1,4 +1,4 @@
-# Ghost Market — BNB Hackathon Beta 0.6
+# Ghost Market — BNB Hackathon Beta 0.9
 
 Ghost Market answers one question: **when Wall Street is closed, what does an independently verifiable blockchain market say a tokenized stock is worth?**
 
@@ -9,7 +9,7 @@ It is market-intelligence software, not a trading app, price forecast or investm
 
 ## Guided experience
 
-Beta 0.6 is organized as a calm, mobile-first learning journey instead of a dense terminal:
+Beta 0.9 is organized as a calm, mobile-first learning journey instead of a dense terminal:
 
 - one primary action per step and a visible comprehension path;
 - plain-language evidence checks before technical detail;
@@ -17,6 +17,13 @@ Beta 0.6 is organized as a calm, mobile-first learning journey instead of a dens
 - complete English and Spanish controls, plus Calm Mode and reduced-motion support;
 - a clearly gated deterministic demo with eight chapters, including Break the Consensus and The Morning After;
 - resilient `UNAVAILABLE` states when a live provider is incomplete or unreachable.
+- Ghost Guardian 2.0: a public, request-time, read-only investigation of the single verified PancakeSwap V2 AAPLon/USDT route for a bounded hypothetical input.
+
+## Ghost Guardian 2.0
+
+`Investigate Route` reads BNB Smart Chain at one block, verifies the AAPLon contract and PancakeSwap V2 pair through the factory, reads request-time reserves, and estimates constant-product execution impact with an explicit 0.25% fee assumption. It returns only `REJECTED`, `INSUFFICIENT EVIDENCE`, or `CANDIDATE FOR FURTHER REVIEW`.
+
+The public runtime never requests a wallet and contains no trading, approval, signing, transfer or payment path. Unchecked DEX routes, an Agentic Wallet executable quote route, gas, transfer restrictions and independent reference-price freshness remain `NOT CHECKED`. The “Why this result?” explanation is a deterministic rendering of the verified dossier, explicitly not a simulated LLM call.
 
 ![Ghost Market desktop](docs/screenshots/ghost-market-desktop.png)
 
